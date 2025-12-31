@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<routes>
+    <route id="route1" edges="E1 -E2"/>
+    <route id="route2" edges="E1 -E3"/>
+    <route id="route3" edges="E1 -E4"/>
+    <route id="route4" edges="E2 -E1"/>
+    <route id="route5" edges="E2 -E3"/>
+    <route id="route6" edges="E2 -E4"/>
+    <route id="route7" edges="E3 -E1"/>
+    <route id="route8" edges="E3 -E2"/>
+    <route id="route9" edges="E3 -E4"/>
+    <route id="route10" edges="E4 -E1"/>
+    <route id="route11" edges="E4 -E2"/>
+    <route id="route12" edges="E4 -E3"/>
+</routes>

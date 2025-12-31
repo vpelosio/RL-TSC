@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="4way_crossing_160m.net.xml"/>
+        <route-files value="4way_crossing_160m.rou.xml,..\vehicletypes.rou.xml"/>
+        <additional-files value="4way_crossing_160m.add.xml"/>
+    </input>
+
+    <gui-only>
+        <gui-settings-file value="..\realworld.view.xml"/>
+    </gui-only>
+
+</configuration>
