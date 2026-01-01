@@ -6,3 +6,4 @@ stable_baselines3[extra]==2.7.1
 gymnasium==1.2.3
 PyYAML==6.0.1
 libsumo==1.25.0
+sumo-rl==1.4.5
