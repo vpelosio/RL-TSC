@@ -4,7 +4,7 @@ import random
 import numpy as np
 import libsumo as traci
 import yaml
-from DriverProfile import DriverProfile
+from driver_profile import DriverProfile
 
 class VehicleList(list):
     def getVehicle(self, vehicleID):
