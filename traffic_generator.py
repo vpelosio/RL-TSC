@@ -93,22 +93,22 @@ class TrafficGenerator:
         return 1000 
     
     def _get_depart_times(self, n, scenario: Scenario):
-        duration = 3600
+        max_depart_time = 3300 # 1h - 5m buffer so that the crossway can drain vehicles generated near the end
 
         if scenario == Scenario.WAVE:
-            # 10% (15m) -> 80% (30m) -> 10% (15m)
+            # 10% (15m) -> 80% (30m) -> 10% (10m)
             n_peak = int(n*0.80)
             n_rest = n - n_peak
             n_start = int(n_rest/2)
             n_end = n_rest - n_start # in case they are not even
 
-            t1 = np.random.uniform(0, 900, n_start)
-            t2 = np.random.uniform(900, 2700, n_peak)
-            t3 = np.random.uniform(2700, duration, n_end)
+            t1 = np.random.uniform(0, 900, n_start)                 # 0-15m
+            t2 = np.random.uniform(900, 2700, n_peak)               # 15-45m
+            t3 = np.random.uniform(2700, max_depart_time, n_end)    # 45-55m
 
             times = np.concatenate([t1, t2, t3])
         else:
-            times = np.random.uniform(0, duration, n)
+            times = np.random.uniform(0, max_depart_time, n)
         
         times = np.round(times / self.simulation_step) * self.simulation_step # round to simulation_step
 
