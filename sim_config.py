@@ -3,7 +3,7 @@ from typing import List, Dict
 
 @dataclass
 class SimConfig:
-    folder_name: str
+    name: str
     add_file: str
     net_file: str
     rou_file: str
@@ -18,7 +18,7 @@ class SimConfig:
 
 
 CONFIG_4WAY_160M = SimConfig(
-    folder_name="4way_crossing_160m",
+    name="4way_crossing_160m",
     add_file="4way_crossing_160m.add.xml",
     net_file="4way_crossing_160m.net.xml",
     rou_file="4way_crossing_160m.rou.xml",
