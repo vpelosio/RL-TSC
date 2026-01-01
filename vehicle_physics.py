@@ -25,7 +25,6 @@ class VehicleList(list):
 
 class Vehicle(ABC):
     def __init__(self, id, length, minGap, weight, maxSpeed, initialSpeed, startstop, acceleration, brakingAcceleration, fullBrakingAcceleration, driverProfile, fuel, emission, depart=-1):
-        # parametri statici
         self.__vehicleID = id
         self.__numericalID = int(id.replace("vehicle",""))
         self.__routeID = -1
@@ -43,7 +42,6 @@ class Vehicle(ABC):
         self.__emissionClass = emission
         self.__depart = depart
         
-        # parametri misurati durante la simulazione
         self.__totalWaitingTime = 0
         self.__totalTravelTime = 0
         self.__totalDistance = 0
@@ -57,7 +55,6 @@ class Vehicle(ABC):
         self.__totalElectricityConsumption = 0
         self.__totalNoiseEmission = 0
 
-    # --- Property Getters ---
     @property
     def vehicleID(self): return self.__vehicleID
     @property
@@ -69,11 +66,11 @@ class Vehicle(ABC):
     @property
     def length(self): return self.__length
     @property
-    def minGap(self): return self.__minGap # Getter aggiunto
+    def minGap(self): return self.__minGap
     @property
     def weight(self): return self.__weight
     @property
-    def maxSpeed(self): return self.__maxSpeed # Getter aggiunto
+    def maxSpeed(self): return self.__maxSpeed
     @property
     def initialSpeed(self): return self.__initialSpeed
     @property
@@ -96,7 +93,6 @@ class Vehicle(ABC):
     @depart.setter
     def depart(self, value): self.__depart = value
 
-    # --- Properties per metriche ---
     @property
     def totalWaitingTime(self): return self.__totalWaitingTime
     @totalWaitingTime.setter
@@ -147,7 +143,6 @@ class Vehicle(ABC):
     def totalNoiseEmission(self, value): self.__totalNoiseEmission = value
 
     def doMeasures(self):
-        # Nota: La logica rimane invariata, ma assicurati che traci sia connesso quando chiami questo
         if not (self.hasStartStop and traci.vehicle.getSpeed(self.vehicleID) < 0.3):
             self.totalCO2Emissions += (traci.vehicle.getCO2Emission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
             self.totalCOEmissions += (traci.vehicle.getCOEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
@@ -165,7 +160,6 @@ class Vehicle(ABC):
 
     @staticmethod
     def _get_clamped_random(params):
-        """Helper per generare valori gaussiani con limiti (Clamping)"""
         val = float(np.random.normal(loc=params["mean"], scale=params["std"], size=1)[0])
         return max(params["min"], min(params["max"], val))
 
