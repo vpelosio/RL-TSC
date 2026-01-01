@@ -43,9 +43,9 @@ class TrafficGenerator:
 
         selected_scenario = random.choices(scenarios, weights=weights, k=1)[0]
 
-        n_vehicles = self._get_depart_times(selected_scenario)
+        n_vehicles = self._get_vehicle_count(selected_scenario)
         depart_times = self._get_depart_times(n_vehicles, selected_scenario)
-        routes = self._get_routes(selected_scenario)
+        routes = self._get_routes(n_vehicles, selected_scenario)
 
         vehicle_list = VehicleList()
         v_types = list(self.vehicle_distribution.keys())
