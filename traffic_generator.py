@@ -1,8 +1,7 @@
 import random
 import numpy as np
 from enum import Enum
-
-# given an episode i, here we decide the scenario and generate the vehicles
+from vehicle_generator import *
 
 class Scenario(Enum):
     LOW = "low"
@@ -13,8 +12,9 @@ class Scenario(Enum):
 
 
 class TrafficGenerator:
-    def __init__(self, sim_config):
+    def __init__(self, sim_config, simulation_step):
         self.sim_config = sim_config
+        self.simulation_step = simulation_step
 
         self.scenario_probs = {
             Scenario.LOW:        0.05,
@@ -23,6 +23,49 @@ class TrafficGenerator:
             Scenario.UNBALANCED: 0.20,
             Scenario.WAVE:       0.15
         }
+
+        self.vehicle_distribution = {
+            'PassengerCar':             0.75891, 
+            'LightCommercialVehicle':   0.08343, 
+            'HeavyGoodsVehicle':        0.01393, 
+            'Truck':                    0.00403, 
+            'MotorCycle':               0.13781, 
+            'Bus':                      0.00189
+        }
+
+    def generate_traffic(self, episode_index):
+        # For reproducibility
+        random.seed(episode_index)
+        np.random.seed(episode_index)
+
+        scenarios = list(self.scenario_probs.keys())
+        weights = list(self.scenario_probs.values())
+
+        selected_scenario = random.choices(scenarios, weights=weights, k=1)[0]
+
+        n_vehicles = self._get_depart_times(selected_scenario)
+        depart_times = self._get_depart_times(n_vehicles, selected_scenario)
+        routes = self._get_routes(selected_scenario)
+
+        vehicle_list = VehicleList()
+        v_types = list(self.vehicle_distribution.keys())
+        v_probs = list(self.vehicle_distribution.values())
+
+        # normalization
+        v_probs = np.array(v_probs)
+        v_probs = v_probs / v_probs.sum()
+
+        random_vtype_strings = np.random.choice(v_types, size=n_vehicles, p=v_probs)
+
+        for i, vtype_str in enumerate(random_vtype_strings):
+            new_vehicle = eval(vtype_str).generateRandom("vehicle"+str(i))
+            new_vehicle.depart = depart_times[i]
+            new_vehicle.routeID = routes[i]
+
+            vehicle_list.append(new_vehicle)
+
+        return vehicle_list
+    
     
     # Private Methods
     def _get_vehicle_count(self, scenario: Scenario):
@@ -65,10 +108,12 @@ class TrafficGenerator:
             times = np.concatenate([t1, t2, t3])
         else:
             times = np.random.uniform(0, duration, n)
+        
+        times = np.round(times / self.simulation_step) * self.simulation_step # round to simulation_step
 
         return times
     
-    def _calculate_route_weights(self, scenario: Scenario):
+    def _get_routes(self, n, scenario: Scenario):
         weights = {rid: 0.0 for rid in self.sim_config.route_ids}
 
         def set_w(group, val):
@@ -103,6 +148,11 @@ class TrafficGenerator:
             set_w('EW_Right', 15.0 * vol_ew)
             set_w('EW_Left', 15.0 * vol_ew)
         
-        return [weights[rid] for rid in self.sim_config.route_ids]
+        ordered_weights = np.array([weights[rid] for rid in self.sim_config.route_ids])
+        normalized_weights = ordered_weights / ordered_weights.sum()
+
+        routes = np.random.choice(self.sim_config.route_ids, size=n, p=normalized_weights)
+        
+        return routes
 
 
