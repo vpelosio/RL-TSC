@@ -61,6 +61,7 @@ class TrafficGenerator:
             new_vehicle = eval(vtype_str).generateRandom("vehicle"+str(i))
             new_vehicle.depart = depart_times[i]
             new_vehicle.routeID = routes[i]
+            new_vehicle.departLane = "free"
 
             vehicle_list.append(new_vehicle)
 

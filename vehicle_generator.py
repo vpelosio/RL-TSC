@@ -41,6 +41,7 @@ class Vehicle(ABC):
         self.__fuelType = fuel
         self.__emissionClass = emission
         self.__depart = depart
+        self.__departLane = ""
         
         self.__totalWaitingTime = 0
         self.__totalTravelTime = 0
@@ -92,6 +93,11 @@ class Vehicle(ABC):
     def depart(self): return self.__depart
     @depart.setter
     def depart(self, value): self.__depart = value
+
+    @property
+    def departLane(self): return self.__departLane
+    @departLane.setter
+    def departLane(self, value): self.__departLane = value
 
     @property
     def totalWaitingTime(self): return self.__totalWaitingTime
