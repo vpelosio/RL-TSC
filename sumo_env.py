@@ -50,9 +50,9 @@ def generateVehicleTypesXML(vehicleList):
         fd.write(rootXML.toprettyxml(indent="    "))
 
 
-class SumoTrafficEnv(gym.Env):
-    def __init__(self, sim_config, sim_step, action_step, green_duration, episode_duration, log_file_path, gui=False):
-        super(SumoTrafficEnv, self).__init__()
+class SumoEnv(gym.Env):
+    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_file_path, gui=False):
+        super(SumoEnv, self).__init__()
         self.sim_config = sim_config
         self.gui = gui
 
@@ -60,7 +60,6 @@ class SumoTrafficEnv(gym.Env):
         
         self.sim_step = sim_step
         self.action_step = action_step
-        self.green_duration = green_duration
         self.episode_duration = episode_duration
 
         self.steps_per_action = int(action_step / sim_step)
