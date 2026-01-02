@@ -7,6 +7,8 @@ class SimConfig:
     add_file: str
     net_file: str
     rou_file: str
+    tl_id: str
+    tl_program: str
     route_ids: List[str] = field(init=False)
     routes_map: Dict[str, List[str]]
     description: str = ""
@@ -22,6 +24,8 @@ CONFIG_4WAY_160M = SimConfig(
     add_file="4way_crossing_160m.add.xml",
     net_file="4way_crossing_160m.net.xml",
     rou_file="4way_crossing_160m.rou.xml",
+    tl_id="J0",
+    tl_program="1",
 
     routes_map={
         "NS_Straight": ["route11", "route6"], 
