@@ -8,7 +8,7 @@ from traffic_generator import *
 from sim_config import *
 
 def startSumo(map_name, simulation_step):
-    traci.start(["sumo-gui", "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", "--waiting-time-memory", "3000", "--start", "--quit-on-end", "--verbose", "--step-length", str(simulation_step)])
+    traci.start(["sumo", "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", "--waiting-time-memory", "3000", "--start", "--quit-on-end", "--verbose", "--step-length", str(simulation_step)])
 
 def addVehiclesToSimulation(vehicleList):
     for v in vehicleList:
