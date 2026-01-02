@@ -43,18 +43,6 @@ class Vehicle(ABC):
         self.__depart = depart
         self.__departLane = ""
         
-        self.__totalWaitingTime = 0
-        self.__totalTravelTime = 0
-        self.__totalDistance = 0
-        self.__meanSpeed = 0
-        self.__totalCO2Emissions = 0
-        self.__totalCOEmissions = 0
-        self.__totalHCEmissions = 0
-        self.__totalPMxEmissions = 0
-        self.__totalNOxEmissions = 0
-        self.__totalFuelConsumption = 0
-        self.__totalElectricityConsumption = 0
-        self.__totalNoiseEmission = 0
 
     @property
     def vehicleID(self): return self.__vehicleID
@@ -98,71 +86,6 @@ class Vehicle(ABC):
     def departLane(self): return self.__departLane
     @departLane.setter
     def departLane(self, value): self.__departLane = value
-
-    @property
-    def totalWaitingTime(self): return self.__totalWaitingTime
-    @totalWaitingTime.setter
-    def totalWaitingTime(self, value): self.__totalWaitingTime = value
-    @property
-    def totalTravelTime(self): return self.__totalTravelTime
-    @totalTravelTime.setter
-    def totalTravelTime(self, value): self.__totalTravelTime = value
-    @property
-    def totalDistance(self): return self.__totalDistance
-    @totalDistance.setter
-    def totalDistance(self, value): self.__totalDistance = value
-    @property
-    def meanSpeed(self): return self.__meanSpeed
-    @meanSpeed.setter
-    def meanSpeed(self, value): self.__meanSpeed = value
-    @property
-    def totalCO2Emissions(self): return self.__totalCO2Emissions
-    @totalCO2Emissions.setter
-    def totalCO2Emissions(self, value): self.__totalCO2Emissions = value
-    @property
-    def totalCOEmissions(self): return self.__totalCOEmissions
-    @totalCOEmissions.setter
-    def totalCOEmissions(self, value): self.__totalCOEmissions = value
-    @property
-    def totalHCEmissions(self): return self.__totalHCEmissions
-    @totalHCEmissions.setter
-    def totalHCEmissions(self, value): self.__totalHCEmissions = value
-    @property
-    def totalPMxEmissions(self): return self.__totalPMxEmissions
-    @totalPMxEmissions.setter
-    def totalPMxEmissions(self, value): self.__totalPMxEmissions = value
-    @property
-    def totalNOxEmissions(self): return self.__totalNOxEmissions
-    @totalNOxEmissions.setter
-    def totalNOxEmissions(self, value): self.__totalNOxEmissions = value
-    @property
-    def totalFuelConsumption(self): return self.__totalFuelConsumption
-    @totalFuelConsumption.setter
-    def totalFuelConsumption(self, value): self.__totalFuelConsumption = value
-    @property
-    def totalElectricityConsumption(self): return self.__totalElectricityConsumption
-    @totalElectricityConsumption.setter
-    def totalElectricityConsumption(self, value): self.__totalElectricityConsumption = value
-    @property
-    def totalNoiseEmission(self): return self.__totalNoiseEmission
-    @totalNoiseEmission.setter
-    def totalNoiseEmission(self, value): self.__totalNoiseEmission = value
-
-    def doMeasures(self):
-        if not (self.hasStartStop and traci.vehicle.getSpeed(self.vehicleID) < 0.3):
-            self.totalCO2Emissions += (traci.vehicle.getCO2Emission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalCOEmissions += (traci.vehicle.getCOEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalHCEmissions += (traci.vehicle.getHCEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalPMxEmissions += (traci.vehicle.getPMxEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalNOxEmissions += (traci.vehicle.getNOxEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalFuelConsumption += (traci.vehicle.getFuelConsumption(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalNoiseEmission += traci.vehicle.getNoiseEmission(self.vehicleID)
-        self.totalElectricityConsumption += (traci.vehicle.getElectricityConsumption(self.vehicleID) * traci.simulation.getDeltaT())
-        self.totalWaitingTime = traci.vehicle.getAccumulatedWaitingTime(self.vehicleID)
-        self.totalDistance = traci.vehicle.getDistance(self.vehicleID)
-        self.totalTravelTime = traci.simulation.getTime() - traci.vehicle.getDeparture(self.vehicleID)
-        if self.totalTravelTime > 0:
-            self.meanSpeed = self.totalDistance / self.totalTravelTime
 
     @staticmethod
     def _get_clamped_random(params):
