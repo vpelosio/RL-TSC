@@ -7,14 +7,29 @@ from xml.dom import minidom
 from gymnasium import spaces
 from sim_config import *
 
+def log_scenario(log_folder, episode_index, vehicle_num, scenario):
+    episode_info_file = os.path.join(log_folder, f"episode_info_ep{episode_index}.txt")
+
+    episode_info = (
+        f"==================================================\n"
+        f" EPISODE INFO\n"
+        f"==================================================\n"
+        f" Episode Index  : {episode_index}\n"
+        f" Scenario Type  : {scenario}\n"
+        f" Total Vehicles : {vehicle_num}\n"
+        f"==================================================\n"
+    )
+
+    with open(episode_info_file, 'w') as f:
+        f.write(episode_info)
+
 def startSumo(map_name, simulation_step, log_folder, episode_index):
     try:
         libsumo.close()
     except:
         pass
 
-    log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
-
+    sumo_log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
     libsumo.start([
         "sumo", 
         "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", 
@@ -23,7 +38,7 @@ def startSumo(map_name, simulation_step, log_folder, episode_index):
         "--quit-on-end", 
         "--verbose", 
         "--step-length", str(simulation_step),
-        "--log", log_file
+        "--log", sumo_log_file,
         ])
 
 def addVehiclesToSimulation(vehicleList):
@@ -90,8 +105,11 @@ class SumoEnv(gym.Env):
         super().reset(seed=seed)
         self.episode_count += 1
 
-        vehicle_list = self.traffic_gen.generate_traffic(self.episode_count)
+        vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
         generateVehicleTypesXML(vehicle_list)
+
+        log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
+        
         startSumo(CONFIG_4WAY_160M.name, self.sim_step, self.log_folder, self.episode_count)
         addVehiclesToSimulation(vehicle_list)
         libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)

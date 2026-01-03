@@ -65,7 +65,7 @@ class TrafficGenerator:
 
             vehicle_list.append(new_vehicle)
 
-        return vehicle_list
+        return vehicle_list, n_vehicles, selected_scenario
     
     
     # Private Methods
