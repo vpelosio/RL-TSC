@@ -2,7 +2,7 @@ from abc import ABC
 from random import randint
 import random
 import numpy as np
-import libsumo as traci
+import libsumo
 import yaml
 from driver_profile import DriverProfile
 
@@ -148,18 +148,18 @@ class Vehicle(ABC):
     def departLane(self, value): self.__departLane = value
 
     def doMeasures(self):
-        if not (self.hasStartStop and traci.vehicle.getSpeed(self.vehicleID) < 0.3):
-            self.totalCO2Emissions += (traci.vehicle.getCO2Emission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalCOEmissions += (traci.vehicle.getCOEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalHCEmissions += (traci.vehicle.getHCEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalPMxEmissions += (traci.vehicle.getPMxEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalNOxEmissions += (traci.vehicle.getNOxEmission(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalFuelConsumption += (traci.vehicle.getFuelConsumption(self.vehicleID) * traci.simulation.getDeltaT()) / 1000
-            self.totalNoiseEmission += traci.vehicle.getNoiseEmission(self.vehicleID)
-        self.totalElectricityConsumption += (traci.vehicle.getElectricityConsumption(self.vehicleID) * traci.simulation.getDeltaT())
-        self.totalWaitingTime = traci.vehicle.getAccumulatedWaitingTime(self.vehicleID)
-        self.totalDistance = traci.vehicle.getDistance(self.vehicleID)
-        self.totalTravelTime = traci.simulation.getTime() - traci.vehicle.getDeparture(self.vehicleID)
+        if not (self.hasStartStop and libsumo.vehicle.getSpeed(self.vehicleID) < 0.3):
+            self.totalCO2Emissions += (libsumo.vehicle.getCO2Emission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalCOEmissions += (libsumo.vehicle.getCOEmission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalHCEmissions += (libsumo.vehicle.getHCEmission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalPMxEmissions += (libsumo.vehicle.getPMxEmission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalNOxEmissions += (libsumo.vehicle.getNOxEmission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalFuelConsumption += (libsumo.vehicle.getFuelConsumption(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000
+            self.totalNoiseEmission += libsumo.vehicle.getNoiseEmission(self.vehicleID)
+        self.totalElectricityConsumption += (libsumo.vehicle.getElectricityConsumption(self.vehicleID) * libsumo.simulation.getDeltaT())
+        self.totalWaitingTime = libsumo.vehicle.getAccumulatedWaitingTime(self.vehicleID)
+        self.totalDistance = libsumo.vehicle.getDistance(self.vehicleID)
+        self.totalTravelTime = libsumo.simulation.getTime() - libsumo.vehicle.getDeparture(self.vehicleID)
         if self.totalTravelTime > 0:
             self.meanSpeed = self.totalDistance / self.totalTravelTime
 

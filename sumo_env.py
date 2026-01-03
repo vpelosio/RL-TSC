@@ -1,25 +1,34 @@
 import gymnasium as gym
 import numpy as np
-import libsumo as traci
+import libsumo
 import os
-import sys
-import csv
 from traffic_generator import TrafficGenerator
 from xml.dom import minidom
 from gymnasium import spaces
 from sim_config import *
 
-def startSumo(map_name, simulation_step):
+def startSumo(map_name, simulation_step, log_folder, episode_index):
     try:
-        traci.close()
+        libsumo.close()
     except:
         pass
 
-    traci.start(["sumo", "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", "--waiting-time-memory", "3000", "--start", "--quit-on-end", "--verbose", "--step-length", str(simulation_step)])
+    log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
+
+    libsumo.start([
+        "sumo", 
+        "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", 
+        "--waiting-time-memory", "3600", 
+        "--start", 
+        "--quit-on-end", 
+        "--verbose", 
+        "--step-length", str(simulation_step),
+        "--log", log_file
+        ])
 
 def addVehiclesToSimulation(vehicleList):
     for v in vehicleList:
-        traci.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
+        libsumo.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
 
 def generateVehicleTypesXML(vehicleList):
     rootXML = minidom.Document()
@@ -51,7 +60,7 @@ def generateVehicleTypesXML(vehicleList):
 
 
 class SumoEnv(gym.Env):
-    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_file_path, gui=False):
+    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, gui=False):
         super(SumoEnv, self).__init__()
         self.sim_config = sim_config
         self.gui = gui
@@ -65,7 +74,7 @@ class SumoEnv(gym.Env):
         self.steps_per_action = int(action_step / sim_step)
         self.traffic_gen = TrafficGenerator(self.sim_config, sim_step)
 
-        self.log_file_path = log_file_path
+        self.log_folder = log_folder
 
         # Action 0: N/S Green
         # Action 1: E/W Green
@@ -83,12 +92,12 @@ class SumoEnv(gym.Env):
 
         vehicle_list = self.traffic_gen.generate_traffic(self.episode_count)
         generateVehicleTypesXML(vehicle_list)
-        startSumo(CONFIG_4WAY_160M.name, self.sim_step)
+        startSumo(CONFIG_4WAY_160M.name, self.sim_step, self.log_folder, self.episode_count)
         addVehiclesToSimulation(vehicle_list)
-        traci.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
+        libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
 
         if not self.lane_ids:
-            lanes = sorted(list(set(traci.trafficlight.getControlledLanes(self.sim_config.tl_id))))
+            lanes = sorted(list(set(libsumo.trafficlight.getControlledLanes(self.sim_config.tl_id))))
             self.lane_ids = lanes[:8] if len(lanes) >= 8 else lanes
 
         return self._compute_observation(), {}
@@ -97,32 +106,32 @@ class SumoEnv(gym.Env):
         action = int(action)
         target_phase = action * 3
 
-        current_phase = traci.trafficlight.getPhase(self.sim_config.tl_id)
+        current_phase = libsumo.trafficlight.getPhase(self.sim_config.tl_id)
 
         # Green->Yellow and Yellow->Red transition management
         if current_phase != target_phase:
             next_phase = (current_phase + 1) % 6
             while next_phase != target_phase:
-                traci.trafficlight.setPhase(self.sim_config.tl_id, next_phase)
-                duration = traci.trafficlight.getPhaseDuration(self.sim_config.tl_id)
+                libsumo.trafficlight.setPhase(self.sim_config.tl_id, next_phase)
+                duration = libsumo.trafficlight.getPhaseDuration(self.sim_config.tl_id)
                 steps = int(duration / self.sim_step)
-                for _ in range(steps): traci.simulationStep()
+                for _ in range(steps): libsumo.simulationStep()
 
                 next_phase = (next_phase + 1) % 6
 
         # Green execution
-        traci.trafficlight.setPhase(self.sim_config.tl_id, target_phase)
+        libsumo.trafficlight.setPhase(self.sim_config.tl_id, target_phase)
 
         total_co2 = 0.0
         total_waiting_time = 0.0
         max_waiting_time = 0.0
 
         for _ in range(self.steps_per_action): # steps per action -> min green time
-            traci.simulationStep()
-            vehicles = traci.vehicle.getIDList()
+            libsumo.simulationStep()
+            vehicles = libsumo.vehicle.getIDList()
             for v in vehicles:
-                co2 = traci.vehicle.getCO2Emission(v) # mg
-                waiting_time = traci.vehicle.getWaitingTime(v) # s
+                co2 = libsumo.vehicle.getCO2Emission(v) # mg
+                waiting_time = libsumo.vehicle.getWaitingTime(v) # s
 
                 total_co2 += co2
                 total_waiting_time += waiting_time
@@ -147,29 +156,29 @@ class SumoEnv(gym.Env):
             penalty = (max_waiting_time - 180) * 0.5
             reward -= penalty
 
-        current_time = traci.simulation.getTime()
-        terminated = traci.simulation.getMinExpectedNumber() == 0
+        current_time = libsumo.simulation.getTime()
+        terminated = libsumo.simulation.getMinExpectedNumber() == 0
         truncated = current_time >= self.episode_duration
 
         if truncated and not terminated:
-            vehicles_left = traci.vehicle.getIDCount()
+            vehicles_left = libsumo.vehicle.getIDCount()
             reward -= (vehicles_left * 0.5)
 
         # Logs
-        with open(self.log_file_path, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([
-                self.episode_count,
-                round(current_time, 1),
-                action,
-                round(co2_grams, 2),
-                round(total_waiting_time, 2),
-                round(r_co2_part, 2),
-                round(r_waiting_time, 2),
-                round(reward, 2),
-                round(max_waiting_time, 1),
-                round(penalty, 2)
-            ])
+        # with open(self.log_file_path, mode='a', newline='') as file:
+        #     writer = csv.writer(file)
+        #     writer.writerow([
+        #         self.episode_count,
+        #         round(current_time, 1),
+        #         action,
+        #         round(co2_grams, 2),
+        #         round(total_waiting_time, 2),
+        #         round(r_co2_part, 2),
+        #         round(r_waiting_time, 2),
+        #         round(reward, 2),
+        #         round(max_waiting_time, 1),
+        #         round(penalty, 2)
+        #     ])
 
         obs = self._compute_observation()
         info = {
@@ -181,16 +190,16 @@ class SumoEnv(gym.Env):
         return obs, reward, terminated, truncated, info
     
     def close(self):
-        traci.close()
+        libsumo.close()
 
     def _compute_observation(self):
         obs = []
         max_cars = 26.0
         for lane in self.lane_ids:
-            q = traci.lane.getLastStepHaltingNumber(lane)
+            q = libsumo.lane.getLastStepHaltingNumber(lane)
             obs.append(min(q, max_cars) / max_cars) # norm 0 to 1
         
-        phase = traci.trafficlight.getPhase(self.sim_config.tl_id)
+        phase = libsumo.trafficlight.getPhase(self.sim_config.tl_id)
         obs.append(1.0 if phase == 3 else 0.0)
 
         return np.array(obs, dtype=np.float32)        

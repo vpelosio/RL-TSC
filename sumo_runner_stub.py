@@ -1,18 +1,18 @@
 import os
 import sys
 import time
-import libsumo as traci
+import libsumo
 from xml.dom import minidom
 from vehicle_generator import *
 from traffic_generator import *
 from sim_config import *
 
 def startSumo(map_name, simulation_step):
-    traci.start(["sumo", "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", "--waiting-time-memory", "3000", "--start", "--quit-on-end", "--verbose", "--step-length", str(simulation_step)])
+    libsumo.start(["sumo", "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", "--waiting-time-memory", "3000", "--start", "--quit-on-end", "--verbose", "--step-length", str(simulation_step)])
 
 def addVehiclesToSimulation(vehicleList):
     for v in vehicleList:
-        traci.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
+        libsumo.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
 
 def generateVehicleTypesXML(vehicleList):
     rootXML = minidom.Document()
@@ -53,24 +53,24 @@ def main():
     addVehiclesToSimulation(vehicle_list)
 
     # temporary
-    for tl in traci.trafficlight.getIDList():
-        traci.trafficlight.setProgram(tl, "0")
+    for tl in libsumo.trafficlight.getIDList():
+        libsumo.trafficlight.setProgram(tl, "0")
 
     activeVehicles = set()
 
-    while traci.simulation.getMinExpectedNumber() > 0:
-        traci.simulationStep()
+    while libsumo.simulation.getMinExpectedNumber() > 0:
+        libsumo.simulationStep()
 
         # aggiornamento set
-        activeVehicles.update(traci.simulation.getDepartedIDList())
-        activeVehicles.difference_update(traci.simulation.getArrivedIDList())
+        activeVehicles.update(libsumo.simulation.getDepartedIDList())
+        activeVehicles.difference_update(libsumo.simulation.getArrivedIDList())
 
         # misure
         for vehicle in activeVehicles:
             vehicle_list.getVehicle(vehicle).doMeasures()
         
     # fine simulazione
-    traci.close()
+    libsumo.close()
     sys.stdout.flush()
 
 if __name__ == "__main__":
