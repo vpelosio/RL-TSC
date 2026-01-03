@@ -77,11 +77,11 @@ class SumoEnv(gym.Env):
 
         self.lane_ids = []
 
-    def reset(self, seed, options=None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.episode_count += 1
 
-        vehicle_list = self.traffic_gen.generate_traffic(seed)
+        vehicle_list = self.traffic_gen.generate_traffic(self.episode_count)
         generateVehicleTypesXML(vehicle_list)
         startSumo(CONFIG_4WAY_160M.name, self.sim_step)
         addVehiclesToSimulation(vehicle_list)
@@ -94,6 +94,7 @@ class SumoEnv(gym.Env):
         return self._compute_observation(), {}
     
     def step(self, action):
+        action = int(action)
         target_phase = action * 3
 
         current_phase = traci.trafficlight.getPhase(self.sim_config.tl_id)
