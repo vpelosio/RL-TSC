@@ -77,7 +77,7 @@ def generateVehicleTypesXML(vehicleList, output_folder):
 
 
 class SumoEnv(gym.Env):
-    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, rank = 0, episode_offset = 0, gui=False):
+    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, rank = 0, episode_offset = 0, enable_measure = False, gui=False):
         super(SumoEnv, self).__init__()
         self.sim_config = sim_config
         self.gui = gui
@@ -89,6 +89,10 @@ class SumoEnv(gym.Env):
         self._setup_workspace()
 
         self.episode_count = episode_offset
+
+        self.measure_enabled = enable_measure
+        self.active_vehicles = set()
+        self.vehicle_list = None
         
         self.sim_step = sim_step
         self.action_step = action_step
@@ -117,11 +121,24 @@ class SumoEnv(gym.Env):
         
         print(f"[Env {self.rank}] Workspace created in: {self.workspace_path}")
 
+    def _simulation_step(self):
+        libsumo.simulationStep()
+
+        if self.measure_enabled:
+            self.active_vehicles.update(libsumo.simulation.getDepartedIDList())
+            self.active_vehicles.difference_update(libsumo.simulation.getArrivedIDList())
+
+            for vehicle in self.active_vehicles:
+                self.vehicle_list.getVehicle(vehicle).doMeasures()
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.episode_count += 1
+        self.active_vehicles = set()
+        self.vehicle_list = None
 
         vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
+        self.vehicle_list = vehicle_list
         generateVehicleTypesXML(vehicle_list, output_folder=self.workspace_path)
 
         log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
@@ -140,6 +157,16 @@ class SumoEnv(gym.Env):
 
         return self._compute_observation(), {}
     
+    def get_measures(self):
+        mesaured_vehicle_data = []
+        for v in self.vehicle_list:
+            data = {"vehicleID": v.vehicleID, "totalDistance": v.totalDistance, "totalTravelTime": v.totalTravelTime, "totalWaitingTime": v.totalWaitingTime, "meanSpeed": v.meanSpeed, "totalCO2Emissions": v.totalCO2Emissions, "totalCOEmissions": v.totalCOEmissions, "totalHCEmissions": v.totalHCEmissions, "totalPMxEmissions": v.totalPMxEmissions, "totalNOxEmissions": v.totalNOxEmissions, "totalFuelConsumption": v.totalFuelConsumption, "totalElectricityConsumption": v.totalElectricityConsumption, "totalNoiseEmission": v.totalNoiseEmission}
+            mesaured_vehicle_data.append(data)
+        return mesaured_vehicle_data
+    
+    def dump_vehicle_population(self, filename):
+        self.vehicle_list.dump(filename)
+    
     def step(self, action):
         action = int(action)
         target_phase = action * 3
@@ -153,7 +180,8 @@ class SumoEnv(gym.Env):
                 libsumo.trafficlight.setPhase(self.sim_config.tl_id, next_phase)
                 duration = libsumo.trafficlight.getPhaseDuration(self.sim_config.tl_id)
                 steps = int(duration / self.sim_step)
-                for _ in range(steps): libsumo.simulationStep()
+                for _ in range(steps): 
+                    self._simulation_step()
 
                 next_phase = (next_phase + 1) % 6
 
@@ -165,10 +193,10 @@ class SumoEnv(gym.Env):
         max_waiting_time = 0.0
 
         for _ in range(self.steps_per_action): # steps per action -> min green time
-            libsumo.simulationStep()
+            self._simulation_step()
             vehicles = libsumo.vehicle.getIDList()
             for v in vehicles:
-                co2 = libsumo.vehicle.getCO2Emission(v) # mg
+                co2 = (libsumo.vehicle.getCO2Emission(v) * libsumo.simulation.getDeltaT()) / 1000  # g
                 waiting_time = libsumo.vehicle.getWaitingTime(v) # s
 
                 total_co2 += co2
@@ -180,13 +208,13 @@ class SumoEnv(gym.Env):
         
         # From test data CO2 (g) is 7.5 times the Wait time (s)
         # Use weight 4.0 to balance the ratio
-        co2_grams = total_co2 / 1000.0
+        co2_grams = total_co2
         w_co2 = 1.0
         w_waiting_time = 4.0
 
         r_co2_part = w_co2 * co2_grams
         r_waiting_time = w_waiting_time * total_waiting_time
-        reward = -(r_co2_part + r_waiting_time)
+        reward = -(r_co2_part + r_waiting_time)/10000
 
         # Anti-Starvation
         penalty = 0.0
