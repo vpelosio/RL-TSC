@@ -39,8 +39,7 @@ def make_env(rank, seed=0):
             episode_duration=3600, 
             log_folder=LOG_DIR,
             rank=rank,          # Proc ID
-            episode_offset=episode_offset, # Offset
-            gui=False
+            episode_offset=episode_offset # Offset
         )
         
         env.reset(seed=seed + rank)
@@ -83,6 +82,6 @@ if __name__ == "__main__":
 
     print(f"Training completed in: {formatted_time}")
     
-    model.save(f"{MODELS_DIR}/final_model_parallel")
+    model.save(f"{MODELS_DIR}/model_parallel")
     
     env.close()
