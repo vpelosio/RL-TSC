@@ -40,6 +40,7 @@ def startSumo(config_file_path, simulation_step, log_folder, episode_index):
         "--verbose", 
         "--step-length", str(simulation_step),
         "--log", sumo_log_file,
+        "--time-to-teleport", "-1" # disable teleport
         ])
 
 def addVehiclesToSimulation(vehicleList):
