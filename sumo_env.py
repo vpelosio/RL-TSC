@@ -2,6 +2,7 @@ import gymnasium as gym
 import numpy as np
 import libsumo
 import os
+import shutil
 from traffic_generator import TrafficGenerator
 from xml.dom import minidom
 from gymnasium import spaces
@@ -23,7 +24,7 @@ def log_scenario(log_folder, episode_index, vehicle_num, scenario):
     with open(episode_info_file, 'w') as f:
         f.write(episode_info)
 
-def startSumo(map_name, simulation_step, log_folder, episode_index):
+def startSumo(config_file_path, simulation_step, log_folder, episode_index):
     try:
         libsumo.close()
     except:
@@ -32,7 +33,7 @@ def startSumo(map_name, simulation_step, log_folder, episode_index):
     sumo_log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
     libsumo.start([
         "sumo", 
-        "-c", "sumo_xml_files/" + map_name + "/" + map_name + ".sumocfg", 
+        "-c", config_file_path, 
         "--waiting-time-memory", "3600", 
         "--start", 
         "--quit-on-end", 
@@ -45,7 +46,7 @@ def addVehiclesToSimulation(vehicleList):
     for v in vehicleList:
         libsumo.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
 
-def generateVehicleTypesXML(vehicleList):
+def generateVehicleTypesXML(vehicleList, output_folder):
     rootXML = minidom.Document()
     routes = rootXML.createElement('routes')
     rootXML.appendChild(routes)
@@ -69,18 +70,24 @@ def generateVehicleTypesXML(vehicleList):
         vtype.setAttribute('guiShape', str(v.shape))
         routes.appendChild(vtype)
 
-    # scrittura dell'XML generato
-    with open("sumo_xml_files/vehicletypes.rou.xml", 'w') as fd:
+    output_path = os.path.join(output_folder, "vehicletypes.rou.xml")
+    with open(output_path, 'w') as fd:
         fd.write(rootXML.toprettyxml(indent="    "))
 
 
 class SumoEnv(gym.Env):
-    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, gui=False):
+    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, rank = 0, episode_offset = 0, gui=False):
         super(SumoEnv, self).__init__()
         self.sim_config = sim_config
         self.gui = gui
+        self.rank = rank
 
-        self.episode_count = 0
+        self.template_xml_path = "sumo_xml_template_files"
+        self.workspace_path = f"sumo_workspace\\env_{self.rank}"
+
+        self._setup_workspace()
+
+        self.episode_count = episode_offset
         
         self.sim_step = sim_step
         self.action_step = action_step
@@ -101,16 +108,28 @@ class SumoEnv(gym.Env):
 
         self.lane_ids = []
 
+    def _setup_workspace(self):
+        if os.path.exists(self.workspace_path):
+            shutil.rmtree(self.workspace_path, ignore_errors=True)
+        
+        shutil.copytree(self.template_xml_path, self.workspace_path)
+        
+        print(f"[Env {self.rank}] Workspace created in: {self.workspace_path}")
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.episode_count += 1
 
         vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
-        generateVehicleTypesXML(vehicle_list)
+        generateVehicleTypesXML(vehicle_list, output_folder=self.workspace_path)
 
         log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
-        
-        startSumo(CONFIG_4WAY_160M.name, self.sim_step, self.log_folder, self.episode_count)
+        config_path = os.path.join(
+            self.workspace_path, 
+            CONFIG_4WAY_160M.name, 
+            CONFIG_4WAY_160M.name + ".sumocfg"
+        )
+        startSumo(config_path, self.sim_step, self.log_folder, self.episode_count)
         addVehiclesToSimulation(vehicle_list)
         libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
 
@@ -181,22 +200,6 @@ class SumoEnv(gym.Env):
         if truncated and not terminated:
             vehicles_left = libsumo.vehicle.getIDCount()
             reward -= (vehicles_left * 0.5)
-
-        # Logs
-        # with open(self.log_file_path, mode='a', newline='') as file:
-        #     writer = csv.writer(file)
-        #     writer.writerow([
-        #         self.episode_count,
-        #         round(current_time, 1),
-        #         action,
-        #         round(co2_grams, 2),
-        #         round(total_waiting_time, 2),
-        #         round(r_co2_part, 2),
-        #         round(r_waiting_time, 2),
-        #         round(reward, 2),
-        #         round(max_waiting_time, 1),
-        #         round(penalty, 2)
-        #     ])
 
         obs = self._compute_observation()
         info = {
