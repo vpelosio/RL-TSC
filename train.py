@@ -13,6 +13,7 @@ EPISODES = 500
 TIMESTEPS = EPISODES * 360  # Approximation
 MODELS_DIR = "models/dqn"
 LOG_DIR = "logs"
+SUMO_WORKSPACE = "sumo_workspace"
 
 def setup_directories():
     if os.path.exists(MODELS_DIR):
@@ -22,6 +23,10 @@ def setup_directories():
     if os.path.exists(LOG_DIR):
         shutil.rmtree(LOG_DIR)
     os.makedirs(LOG_DIR)
+
+    if os.path.exists(SUMO_WORKSPACE):
+        shutil.rmtree(SUMO_WORKSPACE)
+    os.makedirs(SUMO_WORKSPACE)
     
 def make_env(rank, seed=0):
     def _init():
