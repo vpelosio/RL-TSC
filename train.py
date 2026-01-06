@@ -8,7 +8,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M
 
-NUM_CPU = 24
+NUM_CPU = 32
 EPISODES = 500
 TIMESTEPS = EPISODES * 360  # Approximation
 MODELS_DIR = "models/dqn"
