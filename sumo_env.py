@@ -107,8 +107,11 @@ class SumoEnv(gym.Env):
         # Action 1: E/W Green
         self.action_space = spaces.Discrete(2)
         
+        # avg speed, num_vehicles, starionary_vehicles for each edge and phase
+        metrics_per_edge = 3
+        phases = 2
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(9,), dtype=np.float32
+            low=0, high=1, shape=((self.sim_config.num_edges*metrics_per_edge)+phases,), dtype=np.float32
         )
 
         self.lane_ids = []
@@ -172,6 +175,10 @@ class SumoEnv(gym.Env):
         target_phase = action * 3
 
         current_phase = libsumo.trafficlight.getPhase(self.sim_config.tl_id)
+        
+        total_co2 = 0.0
+        total_waiting_time = 0.0
+        delta_t = libsumo.simulation.getDeltaT()
 
         # Green->Yellow and Yellow->Red transition management
         if current_phase != target_phase:
@@ -182,15 +189,15 @@ class SumoEnv(gym.Env):
                 steps = int(duration / self.sim_step)
                 for _ in range(steps): 
                     self._simulation_step()
+                    for lane in self.lane_ids:
+                        lane_co2 = libsumo.lane.getCO2Emission(lane)
+                        total_co2 += (lane_co2 * delta_t) / 1000 # um: g
+                        total_waiting_time += libsumo.lane.getWaitingTime(lane)
 
                 next_phase = (next_phase + 1) % 6
 
         # Green execution
         libsumo.trafficlight.setPhase(self.sim_config.tl_id, target_phase)
-
-        total_co2 = 0.0
-        total_waiting_time = 0.0
-        delta_t = libsumo.simulation.getDeltaT()
 
         for _ in range(self.steps_per_action): # steps per action -> min green time
             self._simulation_step()
@@ -244,13 +251,38 @@ class SumoEnv(gym.Env):
         libsumo.close()
 
     def _compute_observation(self):
-        obs = []
-        max_cars = 26.0
+        edge_stats = {}
+
         for lane in self.lane_ids:
-            q = libsumo.lane.getLastStepHaltingNumber(lane)
-            obs.append(min(q, max_cars) / max_cars) # norm 0 to 1
-        
+            edge = libsumo.lane.getEdgeID(lane)
+
+            if edge not in edge_stats:
+                edge_stats[edge] = { "vehicles" : 0.0, "mean_speed": 0.0, "stationary_vehicles": 0.0, "lanes": 0.0}
+
+            edge_stats[edge]["vehicles"] += libsumo.lane.getLastStepVehicleNumber(lane)
+            edge_stats[edge]["stationary_vehicles"] += libsumo.lane.getLastStepHaltingNumber(lane)
+            mean_speed = libsumo.lane.getLastStepMeanSpeed(lane)
+            max_speed = libsumo.lane.getMaxSpeed(lane)
+            edge_stats[edge]["mean_speed"] += (mean_speed / max_speed)
+            edge_stats[edge]["lanes"] += 1
+
+        obs = []
+        LANE_CAPACITY = 26.0 # estimation from avg length 4.5m + 1.5m mingap
+        for edge in sorted(edge_stats.keys()):
+            data = edge_stats[edge]
+            num_lanes = data["lanes"]
+
+            total_capacity = LANE_CAPACITY * num_lanes
+            normalized_vehicles = data["vehicles"] / total_capacity
+            normalized_mean_speed = data["mean_speed"] / num_lanes
+            normalized_stationary_vehicles = data["stationary_vehicles"] / total_capacity
+
+            obs.append(min(1.0, normalized_vehicles))
+            obs.append(min(1.0, max(0.0, normalized_mean_speed)))
+            obs.append(min(1.0, normalized_stationary_vehicles))
+
         phase = libsumo.trafficlight.getPhase(self.sim_config.tl_id)
+        obs.append(1.0 if phase == 0 else 0.0)
         obs.append(1.0 if phase == 3 else 0.0)
 
-        return np.array(obs, dtype=np.float32)        
+        return np.array(obs, dtype=np.float32)
