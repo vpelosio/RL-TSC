@@ -58,7 +58,7 @@ if __name__ == "__main__":
     model = DQN(
         "MlpPolicy", 
         env, 
-        verbose=1,
+        verbose=0,
         tensorboard_log=LOG_DIR,
         device="auto",
         learning_rate=1e-4, # TBD
