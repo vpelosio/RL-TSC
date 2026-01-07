@@ -9,6 +9,8 @@ class SimConfig:
     rou_file: str
     tl_id: str
     tl_program: str
+    num_edges: int
+    lanes_per_edge: int
     route_ids: List[str] = field(init=False)
     routes_map: Dict[str, List[str]]
     description: str = ""
@@ -26,6 +28,8 @@ CONFIG_4WAY_160M = SimConfig(
     rou_file="4way_crossing_160m.rou.xml",
     tl_id="J0",
     tl_program="1",
+    num_edges=4,
+    lanes_per_edge=2,
 
     routes_map={
         "NS_Straight": ["route11", "route6"], 
