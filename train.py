@@ -58,17 +58,8 @@ if __name__ == "__main__":
     model = DQN(
         "MlpPolicy", 
         env, 
-        verbose=0,
         tensorboard_log=LOG_DIR,
         device="auto",
-        learning_rate=1e-4, # TBD
-        learning_starts=1000, # TBD
-        batch_size=64, # TBD
-        gamma=0.99, # TBD
-        train_freq=4, # TBD
-        target_update_interval=1000, # TBD 
-        exploration_fraction=0.3, # TBD
-        exploration_final_eps=0.05, # TBD
     )
 
     print(f"Start training...")
