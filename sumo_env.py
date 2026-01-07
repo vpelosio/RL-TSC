@@ -190,19 +190,20 @@ class SumoEnv(gym.Env):
 
         total_co2 = 0.0
         total_waiting_time = 0.0
-        max_waiting_time = 0.0
+        delta_t = libsumo.simulation.getDeltaT()
 
         for _ in range(self.steps_per_action): # steps per action -> min green time
             self._simulation_step()
-            vehicles = libsumo.vehicle.getIDList()
-            for v in vehicles:
-                co2 = (libsumo.vehicle.getCO2Emission(v) * libsumo.simulation.getDeltaT()) / 1000  # g
-                waiting_time = libsumo.vehicle.getWaitingTime(v) # s
+            for lane in self.lane_ids:
+                lane_co2 = libsumo.lane.getCO2Emission(lane)
+                total_co2 += (lane_co2 * delta_t) / 1000 # um: g
+                total_waiting_time += libsumo.lane.getWaitingTime(lane)
 
-                total_co2 += co2
-                total_waiting_time += waiting_time
-
-                max_waiting_time = max(max_waiting_time, waiting_time)
+        max_waiting_time = 0.0
+        if total_waiting_time > 0:
+            ids = libsumo.vehicle.getIDList()
+            if ids:
+                max_waiting_time = max([libsumo.vehicle.getWaitingTime(v) for v in ids])
 
         # --- Reward computation ---
         
