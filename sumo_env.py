@@ -92,7 +92,7 @@ class SumoEnv(gym.Env):
 
         self.measure_enabled = enable_measure
         self.active_vehicles = set()
-        self.vehicle_list = None
+        self.vehicle_list = []
         
         self.sim_step = sim_step
         self.action_step = action_step
@@ -138,7 +138,7 @@ class SumoEnv(gym.Env):
         super().reset(seed=seed)
         self.episode_count += 1
         self.active_vehicles = set()
-        self.vehicle_list = None
+        self.vehicle_list = []
 
         vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
         self.vehicle_list = vehicle_list
