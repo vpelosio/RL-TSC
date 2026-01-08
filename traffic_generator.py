@@ -17,11 +17,11 @@ class TrafficGenerator:
         self.simulation_step = simulation_step
 
         self.scenario_probs = {
-            Scenario.LOW:        0.05,
-            Scenario.MEDIUM:     0.25,
-            Scenario.HIGH:       0.35,
-            Scenario.UNBALANCED: 0.20,
-            Scenario.WAVE:       0.15
+            Scenario.LOW:        0.30,
+            Scenario.MEDIUM:     0.40,
+            Scenario.HIGH:       0.10,
+            Scenario.UNBALANCED: 0.10,
+            Scenario.WAVE:       0.10
         }
 
         self.vehicle_distribution = {
@@ -79,16 +79,16 @@ class TrafficGenerator:
             return int(np.clip(val, 900, 2000))
         
         elif scenario == Scenario.HIGH:
-            val = np.random.normal(2800, 400)
-            return int(np.clip(val, 2000, 3200))
+            val = np.random.normal(1600, 350)
+            return int(np.clip(val, 1300, 2000))
             
         elif scenario == Scenario.UNBALANCED:
-            val = np.random.normal(2000, 300)
-            return int(np.clip(val, 1500, 2500))
+            val = np.random.normal(1600, 350)
+            return int(np.clip(val, 1300, 2000))
             
         elif scenario == Scenario.WAVE:
-            val = np.random.normal(2600, 300)
-            return int(np.clip(val, 2200, 3000))
+            val = np.random.normal(1600, 350)
+            return int(np.clip(val, 1300, 2000))
             
         return 1000 
     

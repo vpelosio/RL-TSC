@@ -4,7 +4,7 @@ import time
 import datetime
 import numpy as np
 from stable_baselines3 import DQN
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecFrameStack
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M
 
@@ -12,7 +12,7 @@ NUM_CPU = 16
 EPISODES = 500
 TIMESTEPS = EPISODES * 360  # Approximation
 MODELS_DIR = "models/dqn"
-LOG_DIR = "logs"
+LOG_DIR = os.path.join("logs", "training")
 SUMO_WORKSPACE = "sumo_workspace"
 
 def setup_directories():
@@ -54,12 +54,14 @@ if __name__ == "__main__":
     env = SubprocVecEnv([make_env(i) for i in range(NUM_CPU)])
     
     env = VecMonitor(env, filename=os.path.join(LOG_DIR, "monitor.csv"))
+    env = VecFrameStack(env, n_stack=4)
 
     model = DQN(
         "MlpPolicy", 
         env, 
         tensorboard_log=LOG_DIR,
         device="auto",
+        exploration_fraction=0.5  # explore for half the training
     )
 
     print(f"Start training...")

@@ -1,16 +1,22 @@
 import os
 import sys
-import time
+import numpy as np
+import shutil
+from collections import deque
 from stable_baselines3 import DQN
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
-LOG_DIR = "logs"
+LOG_DIR = os.path.join("logs", "tests")
+if os.path.exists(LOG_DIR):
+    shutil.rmtree(LOG_DIR)
+os.makedirs(LOG_DIR)
 
 MODELS_DIR = os.path.join("models", "dqn")
 
 MODEL_NAME = "model_parallel"
 TEST_EPISODES = 10
+N_STACK = 4
 
 model_path = os.path.join(MODELS_DIR, f"{MODEL_NAME}.zip")
 
@@ -30,15 +36,16 @@ env = SumoEnv(sim_config=CONFIG_4WAY_160M,
             episode_offset=0,
             enable_measure=True)
 
-model = DQN.load(model_path, env=env)
+model = DQN.load(model_path)
 
 print(f"Running {TEST_EPISODES} test episodes.")
 
-total_rewards = []
 
 try:
     for ep in range(1, TEST_EPISODES + 1):
         obs, _ = env.reset()
+        stacked_frames = deque([obs for _ in range(N_STACK)], maxlen=N_STACK)
+
         done = False
         truncated = False
         episode_reward = 0
@@ -47,15 +54,15 @@ try:
         print(f"Episode {ep}/{TEST_EPISODES} started...")
         
         while not (done or truncated):
-            action, _state = model.predict(obs, deterministic=True)
+            obs_stack = np.concatenate(stacked_frames, axis=-1)
+            action, _state = model.predict(obs_stack, deterministic=True)
             
-            obs, reward, done, truncated, info = env.step(action)
-            
+            new_obs, reward, done, truncated, info = env.step(action)
+            stacked_frames.append(new_obs)
             episode_reward += reward
             step_counter += 1
             
         
-        total_rewards.append(episode_reward)
         print(f"Episode {ep} terminated.")
         print(f" -> Length: {step_counter} steps")
         print(f" -> Total reward: {episode_reward:.2f}")
