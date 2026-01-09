@@ -234,10 +234,6 @@ class SumoEnv(gym.Env):
         terminated = libsumo.simulation.getMinExpectedNumber() == 0
         truncated = current_time >= self.episode_duration
 
-        if truncated and not terminated:
-            vehicles_left = libsumo.vehicle.getIDCount()
-            reward -= (vehicles_left * 0.5)
-
         obs = self._compute_observation()
         info = {
             "co2": total_co2,
