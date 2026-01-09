@@ -17,11 +17,11 @@ class TrafficGenerator:
         self.simulation_step = simulation_step
 
         self.scenario_probs = {
-            Scenario.LOW:        0.30,
-            Scenario.MEDIUM:     0.40,
-            Scenario.HIGH:       0.10,
-            Scenario.UNBALANCED: 0.10,
-            Scenario.WAVE:       0.10
+            Scenario.LOW:        0.20,
+            Scenario.MEDIUM:     0.45,
+            Scenario.HIGH:       0.25,
+            Scenario.UNBALANCED: 0.05,
+            Scenario.WAVE:       0.05
         }
 
         self.vehicle_distribution = {
@@ -71,24 +71,24 @@ class TrafficGenerator:
     # Private Methods
     def _get_vehicle_count(self, scenario: Scenario):
         if scenario == Scenario.LOW:
-            val = np.random.normal(600, 150)
-            return int(np.clip(val, 250, 900))
+            val = np.random.normal(800, 150)
+            return int(np.clip(val, 400, 1100))
         
         elif scenario == Scenario.MEDIUM:
-            val = np.random.normal(1400, 300)
-            return int(np.clip(val, 900, 2000))
+            val = np.random.normal(1350, 200)
+            return int(np.clip(val, 1100, 1600))
         
         elif scenario == Scenario.HIGH:
-            val = np.random.normal(1600, 350)
-            return int(np.clip(val, 1300, 2000))
+            val = np.random.normal(1650, 150)
+            return int(np.clip(val, 1500, 1850))
             
         elif scenario == Scenario.UNBALANCED:
-            val = np.random.normal(1600, 350)
-            return int(np.clip(val, 1300, 2000))
+            val = np.random.normal(1600, 150)
+            return int(np.clip(val, 1500, 1850))
             
         elif scenario == Scenario.WAVE:
-            val = np.random.normal(1600, 350)
-            return int(np.clip(val, 1300, 2000))
+            val = np.random.normal(1600, 150)
+            return int(np.clip(val, 1500, 1850))
             
         return 1000 
     
