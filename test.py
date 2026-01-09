@@ -2,19 +2,25 @@ import os
 import sys
 import numpy as np
 import shutil
+import argparse
 from collections import deque
 from stable_baselines3 import DQN
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
-LOG_DIR = os.path.join("logs", "tests")
+parser = argparse.ArgumentParser(description="Run tests on specific DQN model")
+parser.add_argument("--id", type=int, required=True, help="Training ID")
+args = parser.parse_args()
+
+MODEL_RUN = f"train_id_{args.id}"
+LOG_DIR = os.path.join("logs", "tests", MODEL_RUN)
 if os.path.exists(LOG_DIR):
     shutil.rmtree(LOG_DIR)
 os.makedirs(LOG_DIR)
 
-MODELS_DIR = os.path.join("models", "dqn")
+MODELS_DIR = os.path.join("models", "dqn", MODEL_RUN)
 
-MODEL_NAME = "model_parallel"
+MODEL_NAME = f"DQN_{args.id}"
 TEST_EPISODES = 10
 N_STACK = 4
 
@@ -62,26 +68,38 @@ try:
             episode_reward += reward
             step_counter += 1
             
-        
-        print(f"Episode {ep} terminated.")
-        print(f" -> Length: {step_counter} steps")
-        print(f" -> Total reward: {episode_reward:.2f}")
-        print("------------------------------------------------")
         measures = env.get_measures()
-        episode_measures_file = os.path.join(LOG_DIR, f"test_episode_{ep}_measures.csv")
         env.dump_vehicle_population(os.path.join(LOG_DIR, f"test_episode_{ep}_vehicle_pop.yaml"))
+        print(f"Episode {ep} terminated.")
+        print("------------------------------------------------")
 
         if len(measures) > 0:
-            with open(episode_measures_file, 'w') as fd:
+            averages = {}
+            n_measures = len(measures)
+            target_keys = ['totalTravelTime', 'totalWaitingTime', 'totalCO2Emissions']
+            summary_averages_file = os.path.join(LOG_DIR, f"summary_averages.txt")
+            
+            with open(summary_averages_file, 'a') as f:
+                print(f"--- Episode: {ep} ---", file=f)
+                for key in target_keys:
+                    if key in measures[0]:
+                        total = sum(m[key] for m in measures)
+                        averages[key] = total / n_measures
+                        
+                        print(f"Average for {key}: {averages[key]}", file=f)
+                print("", file=f)
+            
+            episode_measures_file = os.path.join(LOG_DIR, f"test_episode_{ep}_measures.csv")
+            with open(episode_measures_file, 'w') as f:
                 keys = list(measures[0].keys())
                 for k in keys:
-                    print(f"{k}", file=fd, end=";")
-                print(file=fd)
+                    print(f"{k}", file=f, end=";")
+                print(file=f)
 
                 for m in measures:
                     for k in keys:
-                        print(f"{m[k]}", file=fd, end=";")
-                    print(file=fd)
+                        print(f"{m[k]}", file=f, end=";")
+                    print(file=f)
 
 except KeyboardInterrupt:
     print("\nUser interruption.")

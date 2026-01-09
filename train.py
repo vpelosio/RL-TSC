@@ -11,24 +11,53 @@ from sim_config import CONFIG_4WAY_160M
 NUM_CPU = 16
 EPISODES = 500
 TIMESTEPS = EPISODES * 360  # Approximation
-MODELS_DIR = "models/dqn"
-LOG_DIR = os.path.join("logs", "training")
 SUMO_WORKSPACE = "sumo_workspace"
+BASE_MODELS_DIR = "models/dqn"
+BASE_LOG_DIR = os.path.join("logs", "training")
 
-def setup_directories():
-    if os.path.exists(MODELS_DIR):
-        shutil.rmtree(MODELS_DIR)
-    os.makedirs(MODELS_DIR)
-
-    if os.path.exists(LOG_DIR):
-        shutil.rmtree(LOG_DIR)
-    os.makedirs(LOG_DIR)
-
-    if os.path.exists(SUMO_WORKSPACE):
-        shutil.rmtree(SUMO_WORKSPACE)
-    os.makedirs(SUMO_WORKSPACE)
+def get_next_train_id(base_dir):
+    if not os.path.exists(base_dir):
+        return 1
     
-def make_env(rank, seed=0):
+    # all folders that starts with "train_id"
+    existing_runs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d)) and d.startswith("train_id_")]
+    
+    if not existing_runs:
+        return 1
+
+    # get train ids
+    train_ids = []
+    for d in existing_runs:
+        try:
+            train_ids.append(int(d.split("_")[1]))
+        except (IndexError, ValueError):
+            pass
+            
+    if not train_ids:
+        return 1
+        
+    return max(train_ids) + 1
+
+def setup_run_directories():
+    train_id = get_next_train_id(BASE_LOG_DIR)
+    run_name = f"train_id_{train_id}"
+
+    current_models_dir = os.path.join(BASE_MODELS_DIR, run_name)
+    current_log_dir = os.path.join(BASE_LOG_DIR, run_name)
+
+    os.makedirs(current_models_dir, exist_ok=True)
+    os.makedirs(current_log_dir, exist_ok=True)
+    os.makedirs(SUMO_WORKSPACE, exist_ok=True) 
+    
+    print(f"--- Run Config ---")
+    print(f"Train ID: {train_id}")
+    print(f"Models Dir: {current_models_dir}")
+    print(f"Logs Dir: {current_log_dir}")
+    print(f"--------------------------")
+
+    return current_models_dir, current_log_dir, train_id
+
+def make_env(rank, log_dir, seed=0):
     def _init():
         episode_offset = rank * 2000 
         
@@ -37,7 +66,7 @@ def make_env(rank, seed=0):
             sim_step=0.5, 
             action_step=10, 
             episode_duration=3600, 
-            log_folder=LOG_DIR,
+            log_folder=log_dir,
             rank=rank,          # Proc ID
             episode_offset=episode_offset # Offset
         )
@@ -47,21 +76,20 @@ def make_env(rank, seed=0):
     return _init
 
 if __name__ == "__main__":
-    setup_directories()
+    models_dir, log_dir, train_id = setup_run_directories()
 
     print(f"Parallel training on {NUM_CPU} processes")
     
-    env = SubprocVecEnv([make_env(i) for i in range(NUM_CPU)])
+    env = SubprocVecEnv([make_env(i, log_dir) for i in range(NUM_CPU)])
     
-    env = VecMonitor(env, filename=os.path.join(LOG_DIR, "monitor.csv"))
+    env = VecMonitor(env, filename=os.path.join(log_dir, "monitor.csv"))
     env = VecFrameStack(env, n_stack=4)
 
     model = DQN(
         "MlpPolicy", 
         env, 
-        tensorboard_log=LOG_DIR,
-        device="auto",
-        exploration_fraction=0.5  # explore for half the training
+        tensorboard_log=log_dir,
+        device="auto"
     )
 
     print(f"Start training...")
@@ -74,7 +102,6 @@ if __name__ == "__main__":
     formatted_time = str(datetime.timedelta(seconds=elapsed))
 
     print(f"Training completed in: {formatted_time}")
-    
-    model.save(f"{MODELS_DIR}/model_parallel")
+    model.save(f"{models_dir}/DQN_{train_id}")
     
     env.close()
