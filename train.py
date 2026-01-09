@@ -29,7 +29,7 @@ def get_next_train_id(base_dir):
     train_ids = []
     for d in existing_runs:
         try:
-            train_ids.append(int(d.split("_")[1]))
+            train_ids.append(int(d.split("_")[2]))
         except (IndexError, ValueError):
             pass
             
