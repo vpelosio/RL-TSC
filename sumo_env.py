@@ -228,8 +228,8 @@ class SumoEnv(gym.Env):
         penalty = 0.0
         if max_waiting_time > 180: # max phase duration in Denny's code
             penalty = (max_waiting_time - 180) * 0.5
-            reward -= penalty
-
+            reward -= (penalty / 10000)
+        
         current_time = libsumo.simulation.getTime()
         terminated = libsumo.simulation.getMinExpectedNumber() == 0
         truncated = current_time >= self.episode_duration
