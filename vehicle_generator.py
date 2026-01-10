@@ -147,6 +147,20 @@ class Vehicle(ABC):
     @departLane.setter
     def departLane(self, value): self.__departLane = value
 
+    def resetMeasures(self):
+        self.__totalWaitingTime = 0
+        self.__totalTravelTime = 0
+        self.__totalDistance = 0
+        self.__meanSpeed = 0
+        self.__totalCO2Emissions = 0
+        self.__totalCOEmissions = 0
+        self.__totalHCEmissions = 0
+        self.__totalPMxEmissions = 0
+        self.__totalNOxEmissions = 0
+        self.__totalFuelConsumption = 0
+        self.__totalElectricityConsumption = 0
+        self.__totalNoiseEmission = 0
+
     def doMeasures(self):
         if not (self.hasStartStop and libsumo.vehicle.getSpeed(self.vehicleID) < 0.3):
             self.totalCO2Emissions += (libsumo.vehicle.getCO2Emission(self.vehicleID) * libsumo.simulation.getDeltaT()) / 1000

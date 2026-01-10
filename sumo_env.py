@@ -7,73 +7,8 @@ from traffic_generator import TrafficGenerator
 from xml.dom import minidom
 from gymnasium import spaces
 from sim_config import *
+from traffic_light import TrafficLight
 
-def log_scenario(log_folder, episode_index, vehicle_num, scenario):
-    episode_info_file = os.path.join(log_folder, f"episode_info_ep{episode_index}.txt")
-
-    episode_info = (
-        f"==================================================\n"
-        f" EPISODE INFO\n"
-        f"==================================================\n"
-        f" Episode Index  : {episode_index}\n"
-        f" Scenario Type  : {scenario}\n"
-        f" Total Vehicles : {vehicle_num}\n"
-        f"==================================================\n"
-    )
-
-    with open(episode_info_file, 'w') as f:
-        f.write(episode_info)
-
-def startSumo(config_file_path, simulation_step, log_folder, episode_index):
-    try:
-        libsumo.close()
-    except:
-        pass
-
-    sumo_log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
-    libsumo.start([
-        "sumo", 
-        "-c", config_file_path, 
-        "--waiting-time-memory", "3600", 
-        "--start", 
-        "--quit-on-end", 
-        "--verbose", 
-        "--step-length", str(simulation_step),
-        "--log", sumo_log_file,
-        "--time-to-teleport", "-1" # disable teleport
-        ])
-
-def addVehiclesToSimulation(vehicleList):
-    for v in vehicleList:
-        libsumo.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
-
-def generateVehicleTypesXML(vehicleList, output_folder):
-    rootXML = minidom.Document()
-    routes = rootXML.createElement('routes')
-    rootXML.appendChild(routes)
-
-    for v in vehicleList:
-        vtype = rootXML.createElement('vType')
-        vtype.setAttribute('id', 'vtype-'+v.vehicleID)
-        vtype.setAttribute('length', str(v.length))
-        vtype.setAttribute('mass', str(v.weight))
-        vtype.setAttribute('maxSpeed', str(v.maxSpeed))
-        vtype.setAttribute('accel', str(v.acceleration))
-        vtype.setAttribute('decel', str(v.brakingAcceleration))
-        vtype.setAttribute('emergencyDecel', str(v.fullBrakingAcceleration))
-        vtype.setAttribute('minGap', str(v.minGap))
-        vtype.setAttribute('tau', str(v.driverProfile.tau))
-        vtype.setAttribute('sigma', str(v.driverProfile.sigma))
-        vtype.setAttribute('speedFactor', str(v.driverProfile.speedLimitComplianceFactor))
-        vtype.setAttribute('vClass', str(v.vClass))
-        vtype.setAttribute('emissionClass', str(v.emissionClass))
-        vtype.setAttribute('color', str(v.color))
-        vtype.setAttribute('guiShape', str(v.shape))
-        routes.appendChild(vtype)
-
-    output_path = os.path.join(output_folder, "vehicletypes.rou.xml")
-    with open(output_path, 'w') as fd:
-        fd.write(rootXML.toprettyxml(indent="    "))
 
 
 class SumoEnv(gym.Env):
@@ -85,6 +20,11 @@ class SumoEnv(gym.Env):
 
         self.template_xml_path = "sumo_xml_template_files"
         self.workspace_path = f"sumo_workspace\\env_{self.rank}"
+        self.sumo_config_path = os.path.join(
+            self.workspace_path, 
+            CONFIG_4WAY_160M.name, 
+            CONFIG_4WAY_160M.name + ".sumocfg"
+        )
 
         self._setup_workspace()
 
@@ -116,6 +56,87 @@ class SumoEnv(gym.Env):
 
         self.lane_ids = []
 
+    def _reset_vehicles_measures(self):
+        for v in self.vehicle_list:
+            v.resetMeasures()
+    
+    def run_smart_traffic_light(self, improvments):
+        self._reset_vehicles_measures()
+        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_count)
+        self._addVehiclesToSimulation(self.vehicle_list)
+        libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
+        tl = TrafficLight(self.sim_config.tl_id, improvments)
+        while libsumo.simulation.getMinExpectedNumber() > 0:
+            self._simulation_step()
+            tl.performStep()
+
+    def _startSumo(self, config_file_path, simulation_step, log_folder, episode_index):
+        try:
+            libsumo.close()
+        except:
+            pass
+
+        sumo_log_file = os.path.join(log_folder, f"sumo_output_ep{episode_index}.txt")
+        libsumo.start([
+            "sumo", 
+            "-c", config_file_path, 
+            "--waiting-time-memory", "3600", 
+            "--start", 
+            "--quit-on-end", 
+            "--verbose", 
+            "--step-length", str(simulation_step),
+            "--log", sumo_log_file,
+            "--time-to-teleport", "-1" # disable teleport
+            ])
+
+    def _addVehiclesToSimulation(self, vehicleList):
+        for v in vehicleList:
+            libsumo.vehicle.add(vehID=v.vehicleID, routeID=v.routeID, typeID='vtype-'+v.vehicleID, depart=v.depart, departSpeed=v.initialSpeed, departLane=v.departLane)
+
+    def _generateVehicleTypesXML(self, vehicleList, output_folder):
+        rootXML = minidom.Document()
+        routes = rootXML.createElement('routes')
+        rootXML.appendChild(routes)
+
+        for v in vehicleList:
+            vtype = rootXML.createElement('vType')
+            vtype.setAttribute('id', 'vtype-'+v.vehicleID)
+            vtype.setAttribute('length', str(v.length))
+            vtype.setAttribute('mass', str(v.weight))
+            vtype.setAttribute('maxSpeed', str(v.maxSpeed))
+            vtype.setAttribute('accel', str(v.acceleration))
+            vtype.setAttribute('decel', str(v.brakingAcceleration))
+            vtype.setAttribute('emergencyDecel', str(v.fullBrakingAcceleration))
+            vtype.setAttribute('minGap', str(v.minGap))
+            vtype.setAttribute('tau', str(v.driverProfile.tau))
+            vtype.setAttribute('sigma', str(v.driverProfile.sigma))
+            vtype.setAttribute('speedFactor', str(v.driverProfile.speedLimitComplianceFactor))
+            vtype.setAttribute('vClass', str(v.vClass))
+            vtype.setAttribute('emissionClass', str(v.emissionClass))
+            vtype.setAttribute('color', str(v.color))
+            vtype.setAttribute('guiShape', str(v.shape))
+            routes.appendChild(vtype)
+
+        output_path = os.path.join(output_folder, "vehicletypes.rou.xml")
+        with open(output_path, 'w') as fd:
+            fd.write(rootXML.toprettyxml(indent="    "))
+
+    def _log_scenario(self, log_folder, episode_index, vehicle_num, scenario):
+        episode_info_file = os.path.join(log_folder, f"episode_info_ep{episode_index}.txt")
+
+        episode_info = (
+            f"==================================================\n"
+            f" EPISODE INFO\n"
+            f"==================================================\n"
+            f" Episode Index  : {episode_index}\n"
+            f" Scenario Type  : {scenario}\n"
+            f" Total Vehicles : {vehicle_num}\n"
+            f"==================================================\n"
+        )
+
+        with open(episode_info_file, 'w') as f:
+            f.write(episode_info)
+
     def _setup_workspace(self):
         if os.path.exists(self.workspace_path):
             shutil.rmtree(self.workspace_path, ignore_errors=True)
@@ -142,16 +163,12 @@ class SumoEnv(gym.Env):
 
         vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
         self.vehicle_list = vehicle_list
-        generateVehicleTypesXML(vehicle_list, output_folder=self.workspace_path)
+        self._generateVehicleTypesXML(self.vehicle_list, output_folder=self.workspace_path)
 
-        log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
-        config_path = os.path.join(
-            self.workspace_path, 
-            CONFIG_4WAY_160M.name, 
-            CONFIG_4WAY_160M.name + ".sumocfg"
-        )
-        startSumo(config_path, self.sim_step, self.log_folder, self.episode_count)
-        addVehiclesToSimulation(vehicle_list)
+        self._log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
+
+        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_count)
+        self._addVehiclesToSimulation(self.vehicle_list)
         libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
 
         if not self.lane_ids:
