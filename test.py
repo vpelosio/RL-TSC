@@ -38,6 +38,7 @@ def write_measures(measures, summary_filename, ep_measures_file_name, ep):
 
 parser = argparse.ArgumentParser(description="Run tests on specific DQN model")
 parser.add_argument("--id", type=int, required=True, help="Training ID")
+parser.add_argument("--skip-stl", action="store_true", required=False, help="Skip STL tests")
 args = parser.parse_args()
 
 MODEL_RUN = f"train_id_{args.id}"
@@ -102,25 +103,26 @@ try:
         print("------------------------------------------------")
         write_measures(measures, "dqn_summary.txt", f"dqn_measures_ep{ep}.txt", ep)
 
-        # STL without improvments
-        env.run_smart_traffic_light([])
-        measures = env.get_measures()
-        write_measures(measures, "stl_summary.txt", f"stl_measures_ep{ep}.txt", ep)
+        if not args.skip_stl:
+            # STL without improvments
+            env.run_smart_traffic_light([])
+            measures = env.get_measures()
+            write_measures(measures, "stl_summary.txt", f"stl_measures_ep{ep}.txt", ep)
 
-        # STL with improvment 1 (K = 5)
-        env.run_smart_traffic_light([1])
-        measures = env.get_measures()
-        write_measures(measures, "stl1_summary.txt", f"stl1_measures_ep{ep}.txt", ep)
+            # STL with improvment 1 (K = 5)
+            env.run_smart_traffic_light([1])
+            measures = env.get_measures()
+            write_measures(measures, "stl1_summary.txt", f"stl1_measures_ep{ep}.txt", ep)
 
-        # STL with improvment 2 (skip safe guard)
-        env.run_smart_traffic_light([2])
-        measures = env.get_measures()
-        write_measures(measures, "stl2_summary.txt", f"stl2_measures_ep{ep}.txt", ep)
+            # STL with improvment 2 (skip safe guard)
+            env.run_smart_traffic_light([2])
+            measures = env.get_measures()
+            write_measures(measures, "stl2_summary.txt", f"stl2_measures_ep{ep}.txt", ep)
 
-        # STL with improvments 1 and 2
-        env.run_smart_traffic_light([1,2])
-        measures = env.get_measures()
-        write_measures(measures, "stl12_summary.txt", f"stl12_measures_ep{ep}.txt", ep)
+            # STL with improvments 1 and 2
+            env.run_smart_traffic_light([1,2])
+            measures = env.get_measures()
+            write_measures(measures, "stl12_summary.txt", f"stl12_measures_ep{ep}.txt", ep)
 
 except KeyboardInterrupt:
     print("\nUser interruption.")
