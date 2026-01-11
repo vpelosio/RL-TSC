@@ -4,12 +4,12 @@
 
     <input>
         <net-file value="4way_crossing_160m.net.xml"/>
-        <route-files value="4way_crossing_160m.rou.xml,..\vehicletypes.rou.xml"/>
+        <route-files value="4way_crossing_160m.rou.xml,../vehicletypes.rou.xml"/>
         <additional-files value="4way_crossing_160m.add.xml"/>
     </input>
 
     <gui-only>
-        <gui-settings-file value="..\realworld.view.xml"/>
+        <gui-settings-file value="../realworld.view.xml"/>
     </gui-only>
 
 </configuration>
