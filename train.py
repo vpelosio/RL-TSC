@@ -5,12 +5,12 @@ import datetime
 import numpy as np
 from stable_baselines3 import DQN
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecFrameStack
+from stable_baselines3.common.callbacks import BaseCallback
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M
 
 NUM_CPU = 16
-EPISODES = 500
-TIMESTEPS = EPISODES * 360  # Approximation
+TIMESTEPS = 10_000_000 # very high limit, never reached for 500 episodes
 SUMO_WORKSPACE = "sumo_workspace"
 BASE_MODELS_DIR = "models/dqn"
 BASE_LOG_DIR = os.path.join("logs", "training")
@@ -57,6 +57,35 @@ def setup_run_directories():
 
     return current_models_dir, current_log_dir, train_id
 
+class StopAtMaxEpisodesVec(BaseCallback):
+    def __init__(self, max_episodes: int, verbose=1):
+        super().__init__(verbose)
+        self.max_episodes = max_episodes
+        self.episode_count = 0
+
+    def _on_step(self) -> bool:
+        dones = self.locals['dones']
+        
+        finished_now = np.sum(dones)
+        
+        if finished_now > 0:
+            self.episode_count += finished_now
+            if self.verbose > 0:
+                print("---------------------------------------------------------------")
+                print(f"Completed episodes: {self.episode_count} / {self.max_episodes}")
+                print("---------------------------------------------------------------")
+
+
+        if self.episode_count >= self.max_episodes:
+            if self.verbose > 0:
+                print("---------------------------------------------------------------")
+                print("---------- Episode limit reached. Stop Training. --------------")
+                print("---------------------------------------------------------------")
+
+            return False
+            
+        return True
+
 def make_env(rank, log_dir, seed=0):
     def _init():
         episode_offset = rank * 2000 
@@ -73,6 +102,7 @@ def make_env(rank, log_dir, seed=0):
         
         env.reset(seed=seed + rank)
         return env
+    
     return _init
 
 if __name__ == "__main__":
@@ -94,8 +124,8 @@ if __name__ == "__main__":
 
     print(f"Start training...")
     start_time = time.perf_counter()
-    
-    model.learn(total_timesteps=TIMESTEPS, progress_bar=True)
+    callback_max_episodes = StopAtMaxEpisodesVec(max_episodes=500, verbose=1)
+    model.learn(total_timesteps=TIMESTEPS, callback=callback_max_episodes)
 
     end_time = time.perf_counter()
     elapsed = int(end_time - start_time)
