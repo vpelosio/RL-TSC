@@ -71,24 +71,24 @@ class TrafficGenerator:
     # Private Methods
     def _get_vehicle_count(self, scenario: Scenario):
         if scenario == Scenario.LOW:
-            val = np.random.normal(900, 200)
-            return int(np.clip(val, 500, 1200))
+            val = np.random.normal(650, 200)
+            return int(np.clip(val, 250, 1000))
         
         elif scenario == Scenario.MEDIUM:
-            val = np.random.normal(1500, 250)
-            return int(np.clip(val, 1200, 1750))
+            val = np.random.normal(1350, 250)
+            return int(np.clip(val, 1000, 1700))
         
         elif scenario == Scenario.HIGH:
-            val = np.random.normal(2000, 250)
-            return int(np.clip(val, 1750, 2400))
+            val = np.random.normal(2050, 250)
+            return int(np.clip(val, 1700, 2400))
             
         elif scenario == Scenario.UNBALANCED:
             val = np.random.normal(1900, 250)
-            return int(np.clip(val, 1650, 2300))
+            return int(np.clip(val, 1600, 2250))
             
         elif scenario == Scenario.WAVE:
             val = np.random.normal(1900, 250)
-            return int(np.clip(val, 1650, 2300))
+            return int(np.clip(val, 1600, 2250))
             
         return 1000 
     
@@ -122,7 +122,7 @@ class TrafficGenerator:
                 for r in self.sim_config.routes_map[group]:
                     weights[r] = val
 
-        # Case 1: Standard (Low, Med, Wave) -> 70% Straight, 15% Turn
+        # Case 1: Standard (Low, Med, Wave) -> 70% Straight, 30% Turn
         if scenario in [Scenario.LOW, Scenario.MEDIUM, Scenario.WAVE]:
             for prefix in ["NS", "EW"]:
                 set_w(f"{prefix}_Straight", 70.0)
