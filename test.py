@@ -9,32 +9,32 @@ from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
 def write_measures(measures, summary_filename, ep_measures_file_name, ep):
-            averages = {}
-            n_measures = len(measures)
-            target_keys = ['totalTravelTime', 'totalWaitingTime', 'totalCO2Emissions']
-            summary_averages_file = os.path.join(LOG_DIR, f"{summary_filename}")
-            
-            with open(summary_averages_file, 'a') as f:
-                print(f"--- Episode: {ep} ---", file=f)
-                for key in target_keys:
-                    if key in measures[0]:
-                        total = sum(m[key] for m in measures)
-                        averages[key] = total / n_measures
-                        
-                        print(f"Average for {key}: {averages[key]}", file=f)
-                print("", file=f)
-            
-            episode_measures_file = os.path.join(LOG_DIR, f"{ep_measures_file_name}")
-            with open(episode_measures_file, 'w') as f:
-                keys = list(measures[0].keys())
-                for k in keys:
-                    print(f"{k}", file=f, end=";")
-                print(file=f)
+    averages = {}
+    n_measures = len(measures)
+    target_keys = ['totalTravelTime', 'totalWaitingTime', 'totalCO2Emissions']
+    summary_averages_file = os.path.join(LOG_DIR, f"{summary_filename}")
+    
+    with open(summary_averages_file, 'a') as f:
+        print(f"--- Episode: {ep} ---", file=f)
+        for key in target_keys:
+            if key in measures[0]:
+                total = sum(m[key] for m in measures)
+                averages[key] = total / n_measures
+                
+                print(f"Average for {key}: {averages[key]}", file=f)
+        print("", file=f)
+    
+    episode_measures_file = os.path.join(LOG_DIR, f"{ep_measures_file_name}")
+    with open(episode_measures_file, 'w') as f:
+        keys = list(measures[0].keys())
+        for k in keys:
+            print(f"{k}", file=f, end=";")
+        print(file=f)
 
-                for m in measures:
-                    for k in keys:
-                        print(f"{m[k]}", file=f, end=";")
-                    print(file=f)
+        for m in measures:
+            for k in keys:
+                print(f"{m[k]}", file=f, end=";")
+            print(file=f)
 
 parser = argparse.ArgumentParser(description="Run tests on specific DQN model")
 parser.add_argument("--id", type=int, required=True, help="Training ID")
