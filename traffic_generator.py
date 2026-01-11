@@ -79,7 +79,7 @@ class TrafficGenerator:
             return int(np.clip(val, 1000, 1700))
         
         elif scenario == Scenario.HIGH:
-            val = np.random.normal(2050, 250)
+            val = np.random.normal(2000, 250)
             return int(np.clip(val, 1700, 2400))
             
         elif scenario == Scenario.UNBALANCED:
