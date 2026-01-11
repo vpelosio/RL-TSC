@@ -128,7 +128,7 @@ class SumoEnv(gym.Env):
             f"==================================================\n"
             f" EPISODE INFO\n"
             f"==================================================\n"
-            f" Episode Index  : {episode_index}\n"
+            f" Episode ID  : {episode_index}\n"
             f" Scenario Type  : {scenario}\n"
             f" Total Vehicles : {vehicle_num}\n"
             f"==================================================\n"
