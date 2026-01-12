@@ -8,7 +8,8 @@ from stable_baselines3 import DQN
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
-def write_measures(measures, summary_filename, ep_measures_file_name, ep):
+def write_measures(measures, summary_filename, measures_file_basename, ep):
+    ep_measures_file_name = f"{measures_file_basename}_ep{ep_id}.txt"
     averages = {}
     n_measures = len(measures)
     target_keys = ['totalTravelTime', 'totalWaitingTime', 'totalCO2Emissions']
@@ -52,6 +53,7 @@ MODELS_DIR = os.path.join("models", "dqn", MODEL_RUN)
 MODEL_NAME = f"DQN_{args.id}"
 TEST_EPISODES = 10
 N_STACK = 4
+EPISODE_ID_TEST_OFFSET = 64000
 
 model_path = os.path.join(MODELS_DIR, f"{MODEL_NAME}.zip")
 
@@ -67,8 +69,7 @@ env = SumoEnv(sim_config=CONFIG_4WAY_160M,
             action_step=10, 
             episode_duration=3600, 
             log_folder=LOG_DIR,
-            rank=0,
-            episode_offset=0,
+            episode_offset=EPISODE_ID_TEST_OFFSET,
             enable_measure=True)
 
 model = DQN.load(model_path)
@@ -80,13 +81,18 @@ try:
     for ep in range(1, TEST_EPISODES + 1):
         obs, _ = env.reset()
         stacked_frames = deque([obs for _ in range(N_STACK)], maxlen=N_STACK)
+        ep_id = ep + EPISODE_ID_TEST_OFFSET
 
         done = False
         truncated = False
         episode_reward = 0
         step_counter = 0
         
+        print("----------------------------------------")
         print(f"Episode {ep}/{TEST_EPISODES} started...")
+        print(f"------- Episode ID {ep_id} ------------")
+        print("----------------------------------------")
+
         
         while not (done or truncated):
             obs_stack = np.concatenate(stacked_frames, axis=-1)
@@ -98,31 +104,31 @@ try:
             step_counter += 1
             
         measures = env.get_measures()
-        env.dump_vehicle_population(os.path.join(LOG_DIR, f"test_episode_{ep}_vehicle_pop.yaml"))
-        print(f"Episode {ep} terminated.")
+        env.dump_vehicle_population(os.path.join(LOG_DIR, f"test_episode_{ep_id}_vehicle_pop.yaml"))
+        print(f"Episode {ep_id} terminated.")
         print("------------------------------------------------")
-        write_measures(measures, "dqn_summary.txt", f"dqn_measures_ep{ep}.txt", ep)
+        write_measures(measures, "dqn_summary.txt", "dqn_measures", ep_id)
 
         if not args.skip_stl:
             # STL without improvments
             env.run_smart_traffic_light([])
             measures = env.get_measures()
-            write_measures(measures, "stl_summary.txt", f"stl_measures_ep{ep}.txt", ep)
+            write_measures(measures, "stl_summary.txt", "stl_measures", ep_id)
 
             # STL with improvment 1 (K = 5)
             env.run_smart_traffic_light([1])
             measures = env.get_measures()
-            write_measures(measures, "stl1_summary.txt", f"stl1_measures_ep{ep}.txt", ep)
+            write_measures(measures, "stl1_summary.txt", "stl1_measures", ep_id)
 
             # STL with improvment 2 (skip safe guard)
             env.run_smart_traffic_light([2])
             measures = env.get_measures()
-            write_measures(measures, "stl2_summary.txt", f"stl2_measures_ep{ep}.txt", ep)
+            write_measures(measures, "stl2_summary.txt", "stl2_measures", ep_id)
 
             # STL with improvments 1 and 2
             env.run_smart_traffic_light([1,2])
             measures = env.get_measures()
-            write_measures(measures, "stl12_summary.txt", f"stl12_measures_ep{ep}.txt", ep)
+            write_measures(measures, "stl12_summary.txt", "stl12_measures", ep_id)
 
 except KeyboardInterrupt:
     print("\nUser interruption.")
