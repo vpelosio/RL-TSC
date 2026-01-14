@@ -19,7 +19,7 @@ class SumoEnv(gym.Env):
         self.rank = rank
 
         self.template_xml_path = "sumo_xml_template_files"
-        self.workspace_path = f"sumo_workspace\\env_{self.rank}"
+        self.workspace_path = os.path.join("sumo_workspace", f"env_{self.rank}")
         self.sumo_config_path = os.path.join(
             self.workspace_path, 
             CONFIG_4WAY_160M.name, 
