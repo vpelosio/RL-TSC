@@ -51,9 +51,19 @@ os.makedirs(LOG_DIR)
 MODELS_DIR = os.path.join("models", "dqn", MODEL_RUN)
 
 MODEL_NAME = f"DQN_{args.id}"
-TEST_EPISODES = 10
 N_STACK = 4
-EPISODE_ID_TEST_OFFSET = 64000
+
+EPISODE_TEST_IDS = [64578, # Low 743
+                    64579, # Low 376
+                    64581, # Medium 1415
+                    64582, # Medium 1209
+                    64607, # High 1720
+                    64585, # High 2087
+                    64580, # Wave 1774
+                    64587, # Wave 2183
+                    64589, # Unbalanced 1902
+                    64598] # Unbalanced 2143
+TEST_EPISODES = len(EPISODE_TEST_IDS)
 
 model_path = os.path.join(MODELS_DIR, f"{MODEL_NAME}.zip")
 
@@ -69,7 +79,7 @@ env = SumoEnv(sim_config=CONFIG_4WAY_160M,
             action_step=10, 
             episode_duration=3600, 
             log_folder=LOG_DIR,
-            episode_offset=EPISODE_ID_TEST_OFFSET,
+            episode_list=EPISODE_TEST_IDS,
             enable_measure=True)
 
 model = DQN.load(model_path)
@@ -81,17 +91,17 @@ try:
     for ep in range(1, TEST_EPISODES + 1):
         obs, _ = env.reset()
         stacked_frames = deque([obs for _ in range(N_STACK)], maxlen=N_STACK)
-        ep_id = ep + EPISODE_ID_TEST_OFFSET
+        ep_id = EPISODE_TEST_IDS[ep-1]
 
         done = False
         truncated = False
         episode_reward = 0
         step_counter = 0
         
-        print("----------------------------------------")
-        print(f"Episode {ep}/{TEST_EPISODES} started...")
-        print(f"------- Episode ID {ep_id} ------------")
-        print("----------------------------------------")
+        print("---------------------------------------------------")
+        print(f"       Episode {ep}/{TEST_EPISODES} started       ")
+        print(f"       Episode ID {ep_id}                         ")
+        print("---------------------------------------------------")
 
         
         while not (done or truncated):
@@ -106,7 +116,7 @@ try:
         measures = env.get_measures()
         env.dump_vehicle_population(os.path.join(LOG_DIR, f"test_episode_{ep_id}_vehicle_pop.yaml"))
         print(f"Episode {ep_id} terminated.")
-        print("------------------------------------------------")
+        print("---------------------------------------------------")
         write_measures(measures, "dqn_summary.txt", "dqn_measures", ep_id)
 
         if not args.skip_stl:

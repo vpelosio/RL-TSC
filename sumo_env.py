@@ -12,7 +12,7 @@ from traffic_light import TrafficLight
 
 
 class SumoEnv(gym.Env):
-    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, rank = 0, episode_offset = 0, enable_measure = False, gui=False):
+    def __init__(self, sim_config, sim_step, action_step, episode_duration, log_folder, rank = 0, episode_offset = 0, enable_measure = False, gui=False, episode_list = []):
         super(SumoEnv, self).__init__()
         self.sim_config = sim_config
         self.gui = gui
@@ -27,8 +27,10 @@ class SumoEnv(gym.Env):
         )
 
         self._setup_workspace()
-
-        self.episode_count = episode_offset
+        self.episode_list = episode_list
+        self.episode_list_mode = len(self.episode_list)
+        self.episode_count = 0
+        self.episode_id = episode_offset
 
         self.measure_enabled = enable_measure
         self.active_vehicles = set()
@@ -54,7 +56,7 @@ class SumoEnv(gym.Env):
             low=0, high=1, shape=((self.sim_config.num_edges*metrics_per_edge)+phases,), dtype=np.float32
         )
 
-        self.lane_ids = []
+        self.lane_ids_list = []
 
     def _reset_vehicles_measures(self):
         for v in self.vehicle_list:
@@ -62,7 +64,7 @@ class SumoEnv(gym.Env):
     
     def run_smart_traffic_light(self, improvments):
         self._reset_vehicles_measures()
-        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_count)
+        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_id)
         self._addVehiclesToSimulation(self.vehicle_list)
         libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
         tl = TrafficLight(self.sim_config.tl_id, improvments)
@@ -157,23 +159,30 @@ class SumoEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        if self.episode_list_mode:
+            list_index = self.episode_count % len(self.episode_list)
+            self.episode_id = self.episode_list[list_index]
+        else:
+            self.episode_id = self.episode_id + 1
+        
         self.episode_count += 1
+        
         self.active_vehicles = set()
         self.vehicle_list = []
 
-        vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_count)
+        vehicle_list, vehicle_num, scenario = self.traffic_gen.generate_traffic(self.episode_id)
         self.vehicle_list = vehicle_list
         self._generateVehicleTypesXML(self.vehicle_list, output_folder=self.workspace_path)
 
-        self._log_scenario(self.log_folder, self.episode_count, vehicle_num, scenario)
+        self._log_scenario(self.log_folder, self.episode_id, vehicle_num, scenario)
 
-        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_count)
+        self._startSumo(self.sumo_config_path, self.sim_step, self.log_folder, self.episode_id)
         self._addVehiclesToSimulation(self.vehicle_list)
         libsumo.trafficlight.setProgram(self.sim_config.tl_id, self.sim_config.tl_program)
 
-        if not self.lane_ids:
+        if not self.lane_ids_list:
             lanes = sorted(list(set(libsumo.trafficlight.getControlledLanes(self.sim_config.tl_id))))
-            self.lane_ids = lanes[:8] if len(lanes) >= 8 else lanes
+            self.lane_ids_list = lanes[:8] if len(lanes) >= 8 else lanes
 
         return self._compute_observation(), {}
     
@@ -206,7 +215,7 @@ class SumoEnv(gym.Env):
                 steps = int(duration / self.sim_step)
                 for _ in range(steps): 
                     self._simulation_step()
-                    for lane in self.lane_ids:
+                    for lane in self.lane_ids_list:
                         lane_co2 = libsumo.lane.getCO2Emission(lane)
                         total_co2 += (lane_co2 * delta_t) / 1000 # um: g
                         total_waiting_time += libsumo.lane.getWaitingTime(lane)
@@ -218,7 +227,7 @@ class SumoEnv(gym.Env):
 
         for _ in range(self.steps_per_action): # steps per action -> min green time
             self._simulation_step()
-            for lane in self.lane_ids:
+            for lane in self.lane_ids_list:
                 lane_co2 = libsumo.lane.getCO2Emission(lane)
                 total_co2 += (lane_co2 * delta_t) / 1000 # um: g
                 total_waiting_time += libsumo.lane.getWaitingTime(lane)
@@ -231,11 +240,9 @@ class SumoEnv(gym.Env):
 
         # --- Reward computation ---
         
-        # From test data CO2 (g) is 7.5 times the Wait time (s)
-        # Use weight 4.0 to balance the ratio
         co2_grams = total_co2
-        w_co2 = 1.0
-        w_waiting_time = 4.0
+        w_co2 = 0.2
+        w_waiting_time = 0.8
 
         r_co2_part = w_co2 * co2_grams
         r_waiting_time = w_waiting_time * total_waiting_time
@@ -266,7 +273,7 @@ class SumoEnv(gym.Env):
     def _compute_observation(self):
         edge_stats = {}
 
-        for lane in self.lane_ids:
+        for lane in self.lane_ids_list:
             edge = libsumo.lane.getEdgeID(lane)
 
             if edge not in edge_stats:
@@ -280,12 +287,15 @@ class SumoEnv(gym.Env):
             edge_stats[edge]["lanes"] += 1
 
         obs = []
-        LANE_CAPACITY = 26.0 # estimation from avg length 4.5m + 1.5m mingap
+        edge_lane = libsumo.lane.getLength(self.lane_ids_list[0])
+        vehicle_len_approx = 7.5
+        lane_capacity = edge_lane / vehicle_len_approx
+
         for edge in sorted(edge_stats.keys()):
             data = edge_stats[edge]
             num_lanes = data["lanes"]
 
-            total_capacity = LANE_CAPACITY * num_lanes
+            total_capacity = lane_capacity * num_lanes
             normalized_vehicles = data["vehicles"] / total_capacity
             normalized_mean_speed = data["mean_speed"] / num_lanes
             normalized_stationary_vehicles = data["stationary_vehicles"] / total_capacity
