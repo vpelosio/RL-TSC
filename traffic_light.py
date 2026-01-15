@@ -8,7 +8,7 @@ Ke = 5
 class TrafficLight:
     def __init__(self, tlID, enhancements):
         self.__tlID = tlID
-        self.__enhancements = enhancements  # lista dei miglioramenti dell'algoritmo
+        self.__enhancements = enhancements  # list of algorithm improvements
     
     @property
     def tlID(self):
@@ -20,12 +20,12 @@ class TrafficLight:
     
     @property
     def movingFlow(self):
-        if libsumo.trafficlight.getPhase(self.tlID) in [3,4,5]:   # flusso orizzontale
+        if libsumo.trafficlight.getPhase(self.tlID) in [3,4,5]:   # horizontal flow
             return 'HORIZONTAL'
-        elif libsumo.trafficlight.getPhase(self.tlID) in [0,1,2]: # flusso verticale
+        elif libsumo.trafficlight.getPhase(self.tlID) in [0,1,2]: # vertical flow
             return 'VERTICAL'
 
-    # switch del semaforo per cambiare il flusso che si muove
+    # traffic light switch to change the flow of traffic
     def switchTrafficLight(self):
         libsumo.trafficlight.setPhase(self.tlID, libsumo.trafficlight.getPhase(self.tlID)+1)
 
@@ -45,7 +45,7 @@ class TrafficLight:
 
         return verticalEdges
     
-    # calcolo dei costi dei flussi
+    # cost flow calculation
     def getFlowCosts(self):
         costH = costV = 0
         
@@ -79,25 +79,25 @@ class TrafficLight:
             vehicleNumberV += libsumo.edge.getLastStepVehicleNumber(edge)
         meanSpeedV /= len(self.getVerticalEdges())
 
-        # se i veicoli sono fermi o non ci sono vai alla fase verde
+        # if the vehicles are stationary or there are none, proceed to the green phase
         if (self.movingFlow == 'HORIZONTAL' and (meanSpeedH < 1.0 or vehicleNumberH == 0)) or (self.movingFlow == 'VERTICAL' and (meanSpeedV < 1.0 or vehicleNumberV == 0)):
             libsumo.trafficlight.setPhase(self.tlID, (libsumo.trafficlight.getPhase(self.tlID)+2)%6)
     
-    # azioni eseguite a ogni step della simulazione
-    # Qua se non siamo nell'improvment 2 e non sto dando il verde ad una direzione non viene fatto nulla e viene tenuta l'azione di defuault dell'xml
+    # actions performed at each step of the simulation
+    # Here, if we are not in improvement 2 and I am not giving the green light to a direction, nothing is done and the default action of the XML is maintained.
     def performStep(self):
         if 2 in self.enhancements:
-            # se siamo alla fine della fase giallo prova a saltare la fase di solo rosso se è sicuro farlo
+            # If we are at the end of the yellow phase, try to skip the red-only phase if it is safe to do so.
             if libsumo.trafficlight.getPhase(self.tlID) in [1,4] and 2 <= libsumo.trafficlight.getSpentDuration(self.tlID) < 3:
                 self.tryToSkipRed()
 
-        # massimo 180s di verde per un flusso
-        if libsumo.trafficlight.getSpentDuration(self.tlID) >= 180.0: #implicitamente riguarda una fase di verde perché giallo e salvaguardia durano 3s
+        # maximum 180 seconds of green for one flow
+        if libsumo.trafficlight.getSpentDuration(self.tlID) >= 180.0: # implicitly refers to a green phase because yellow and caution last 3 seconds
             self.switchTrafficLight()
             return
         
-        # minimo 10s di verde per un flusso e controllo di non essere in una fase con giallo o solo rosso
-        if libsumo.trafficlight.getSpentDuration(self.tlID) > 10 and libsumo.trafficlight.getPhase(self.tlID) not in [1,2,4,5]: # sto dando il verde per almeno di 10 secondi ad una delle due direzioni
+        # minimum 10 seconds of green for a flow and check that you are not in a phase with yellow or red only
+        if libsumo.trafficlight.getSpentDuration(self.tlID) > 10 and libsumo.trafficlight.getPhase(self.tlID) not in [1,2,4,5]: # I am giving the green light for at least 10 seconds to one of the two directions
             costH, costV = self.getFlowCosts() 
-            if (self.movingFlow == 'HORIZONTAL' and costH < costV) or (self.movingFlow == 'VERTICAL' and costV < costH): # valuta se è il caso di switchare
+            if (self.movingFlow == 'HORIZONTAL' and costH < costV) or (self.movingFlow == 'VERTICAL' and costV < costH): # consider whether it is appropriate to switch
                 self.switchTrafficLight()
