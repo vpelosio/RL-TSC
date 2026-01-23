@@ -9,7 +9,7 @@ from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
 def write_measures(measures, summary_filename, measures_file_basename, ep):
-    ep_measures_file_name = f"{measures_file_basename}_ep{ep_id}.txt"
+    ep_measures_file_name = f"{measures_file_basename}_ep{ep}.txt"
     averages = {}
     n_measures = len(measures)
     target_keys = ['totalTravelTime', 'totalWaitingTime', 'totalCO2Emissions']
