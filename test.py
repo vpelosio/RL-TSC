@@ -50,7 +50,6 @@ os.makedirs(LOG_DIR)
 MODELS_DIR = os.path.join("models", "dqn", MODEL_RUN)
 
 MODEL_NAME = f"DQN_{args.id}"
-N_STACK = 4
 
 EPISODE_TEST_IDS = [64578, # Low 743
                     64579, # Low 376
