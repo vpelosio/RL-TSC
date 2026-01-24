@@ -35,6 +35,7 @@ class SumoEnv(gym.Env):
         self.measure_enabled = enable_measure
         self.active_vehicles = set()
         self.vehicle_list = []
+        self.obs_history = []
         
         self.sim_step = sim_step
         self.action_step = action_step
@@ -52,8 +53,9 @@ class SumoEnv(gym.Env):
         # avg speed, num_vehicles, starionary_vehicles for each edge and phase
         metrics_per_edge = 3
         phases = 2
+        base_size = self.sim_config.num_edges*metrics_per_edge + phases
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=((self.sim_config.num_edges*metrics_per_edge)+phases,), dtype=np.float32
+            low=0, high=1, shape=(base_size*3,), dtype=np.float32
         )
 
         self.lane_ids_list = []
@@ -159,6 +161,7 @@ class SumoEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        self.obs_history = []
         if self.episode_list_mode:
             list_index = self.episode_count % len(self.episode_list)
             self.episode_id = self.episode_list[list_index]
@@ -184,7 +187,10 @@ class SumoEnv(gym.Env):
             lanes = sorted(list(set(libsumo.trafficlight.getControlledLanes(self.sim_config.tl_id))))
             self.lane_ids_list = lanes[:8] if len(lanes) >= 8 else lanes
 
-        return self._compute_observation(), {}
+        obs = self._compute_observation()
+        zero_obs = np.zeros_like(obs)
+        self.obs_history = [zero_obs, zero_obs, obs]
+        return np.concatenate(self.obs_history), {}
     
     def get_measures(self):
         mesaured_vehicle_data = []
@@ -259,13 +265,18 @@ class SumoEnv(gym.Env):
         truncated = current_time >= self.episode_duration
 
         obs = self._compute_observation()
+        self.obs_history.append(obs)
+        if len(self.obs_history) > 3:
+            self.obs_history.pop(0)
+    
+        stacked_obs = np.concatenate(self.obs_history)
         info = {
             "co2": total_co2,
             "waiting_time": total_waiting_time,
             "max_waiting_time": max_waiting_time
         }
 
-        return obs, reward, terminated, truncated, info
+        return stacked_obs, reward, terminated, truncated, info
     
     def close(self):
         libsumo.close()

@@ -4,7 +4,7 @@ import time
 import datetime
 import numpy as np
 from stable_baselines3 import DQN
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecFrameStack
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from stable_baselines3.common.callbacks import BaseCallback
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M
@@ -113,7 +113,6 @@ if __name__ == "__main__":
     env = SubprocVecEnv([make_env(i, log_dir) for i in range(NUM_CPU)])
     
     env = VecMonitor(env, filename=os.path.join(log_dir, "monitor.csv"))
-    env = VecFrameStack(env, n_stack=4)
 
     model = DQN(
         "MlpPolicy", 
@@ -124,7 +123,7 @@ if __name__ == "__main__":
 
     print(f"Start training...")
     start_time = time.perf_counter()
-    callback_max_episodes = StopAtMaxEpisodesVec(max_episodes=500, verbose=1)
+    callback_max_episodes = StopAtMaxEpisodesVec(max_episodes=2000, verbose=1)
     model.learn(total_timesteps=TIMESTEPS, callback=callback_max_episodes)
 
     end_time = time.perf_counter()

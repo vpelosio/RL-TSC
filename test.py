@@ -3,7 +3,6 @@ import sys
 import numpy as np
 import shutil
 import argparse
-from collections import deque
 from stable_baselines3 import DQN
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
@@ -90,7 +89,6 @@ print(f"Running {TEST_EPISODES} test episodes.")
 try:
     for ep in range(1, TEST_EPISODES + 1):
         obs, _ = env.reset()
-        stacked_frames = deque([obs for _ in range(N_STACK)], maxlen=N_STACK)
         ep_id = EPISODE_TEST_IDS[ep-1]
 
         done = False
@@ -105,11 +103,9 @@ try:
 
         
         while not (done or truncated):
-            obs_stack = np.concatenate(stacked_frames, axis=-1)
-            action, _state = model.predict(obs_stack, deterministic=True)
+            action, _state = model.predict(obs, deterministic=True)
             
-            new_obs, reward, done, truncated, info = env.step(action)
-            stacked_frames.append(new_obs)
+            obs, reward, done, truncated, info = env.step(action)
             episode_reward += reward
             step_counter += 1
             
