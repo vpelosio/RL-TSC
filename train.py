@@ -12,7 +12,7 @@ from sim_config import CONFIG_4WAY_160M
 NUM_CPU = 16
 TIMESTEPS = 10_000_000 # very high limit, never reached for 500 episodes
 SUMO_WORKSPACE = "sumo_workspace"
-BASE_MODELS_DIR = "models/dqn"
+BASE_MODELS_DIR = "models/ppo"
 BASE_LOG_DIR = os.path.join("logs", "training")
 
 def get_next_train_id(base_dir):
@@ -131,6 +131,6 @@ if __name__ == "__main__":
     formatted_time = str(datetime.timedelta(seconds=elapsed))
 
     print(f"Training completed in: {formatted_time}")
-    model.save(f"{models_dir}/DQN_{train_id}")
+    model.save(f"{models_dir}/PPO_{train_id}")
     
     env.close()

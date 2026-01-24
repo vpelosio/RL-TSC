@@ -36,7 +36,7 @@ def write_measures(measures, summary_filename, measures_file_basename, ep):
                 print(f"{m[k]}", file=f, end=";")
             print(file=f)
 
-parser = argparse.ArgumentParser(description="Run tests on specific DQN model")
+parser = argparse.ArgumentParser(description="Run tests on specific PPO model")
 parser.add_argument("--id", type=int, required=True, help="Training ID")
 parser.add_argument("--skip-stl", action="store_true", required=False, help="Skip STL tests")
 args = parser.parse_args()
@@ -47,9 +47,9 @@ if os.path.exists(LOG_DIR):
     shutil.rmtree(LOG_DIR)
 os.makedirs(LOG_DIR)
 
-MODELS_DIR = os.path.join("models", "dqn", MODEL_RUN)
+MODELS_DIR = os.path.join("models", "ppo", MODEL_RUN)
 
-MODEL_NAME = f"DQN_{args.id}"
+MODEL_NAME = f"PPO_{args.id}"
 
 EPISODE_TEST_IDS = [64578, # Low 743
                     64579, # Low 376
@@ -112,7 +112,7 @@ try:
         env.dump_vehicle_population(os.path.join(LOG_DIR, f"test_episode_{ep_id}_vehicle_pop.yaml"))
         print(f"Episode {ep_id} terminated.")
         print("---------------------------------------------------")
-        write_measures(measures, "dqn_summary.txt", "dqn_measures", ep_id)
+        write_measures(measures, "ppo_summary.txt", "ppo_measures", ep_id)
 
         if not args.skip_stl:
             # STL without improvments
