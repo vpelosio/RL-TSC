@@ -3,7 +3,7 @@ import shutil
 import time
 import datetime
 import numpy as np
-from stable_baselines3 import DQN
+from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from stable_baselines3.common.callbacks import BaseCallback
 from sumo_env import SumoEnv
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     
     env = VecMonitor(env, filename=os.path.join(log_dir, "monitor.csv"))
 
-    model = DQN(
+    model = PPO(
         "MlpPolicy", 
         env, 
         tensorboard_log=log_dir,

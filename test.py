@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import shutil
 import argparse
-from stable_baselines3 import DQN
+from stable_baselines3 import PPO
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M 
 
@@ -80,7 +80,7 @@ env = SumoEnv(sim_config=CONFIG_4WAY_160M,
             episode_list=EPISODE_TEST_IDS,
             enable_measure=True)
 
-model = DQN.load(model_path)
+model = PPO.load(model_path)
 
 print(f"Running {TEST_EPISODES} test episodes.")
 
