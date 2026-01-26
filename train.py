@@ -5,7 +5,7 @@ import datetime
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 from sumo_env import SumoEnv
 from sim_config import CONFIG_4WAY_160M
 
@@ -56,6 +56,18 @@ def setup_run_directories():
     print(f"--------------------------")
 
     return current_models_dir, current_log_dir, train_id
+
+class TensorboardCallback(BaseCallback):
+    def __init__(self, verbose=0):
+        super().__init__(verbose)
+
+    def _on_step(self):
+        for info in self.locals["infos"]:
+            
+            if "episode_avgco2" in info:
+                self.logger.record("episode/avg_ep_co2", info["episode_avgco2"])
+                
+        return True
 
 class StopAtMaxEpisodesVec(BaseCallback):
     def __init__(self, max_episodes: int, verbose=1):
@@ -123,8 +135,9 @@ if __name__ == "__main__":
 
     print(f"Start training...")
     start_time = time.perf_counter()
-    callback_max_episodes = StopAtMaxEpisodesVec(max_episodes=2000, verbose=1)
-    model.learn(total_timesteps=TIMESTEPS, callback=callback_max_episodes)
+    callback_max_episodes = StopAtMaxEpisodesVec(max_episodes=5000, verbose=1)
+    callbacks = CallbackList([callback_max_episodes, TensorboardCallback()])
+    model.learn(total_timesteps=TIMESTEPS, callback=callbacks)
 
     end_time = time.perf_counter()
     elapsed = int(end_time - start_time)

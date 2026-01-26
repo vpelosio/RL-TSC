@@ -190,6 +190,7 @@ class SumoEnv(gym.Env):
         obs = self._compute_observation()
         zero_obs = np.zeros_like(obs)
         self.obs_history = [zero_obs, zero_obs, obs]
+        self.episode_co2_total = 0.0
         return np.concatenate(self.obs_history), {}
     
     def get_measures(self):
@@ -245,7 +246,7 @@ class SumoEnv(gym.Env):
                 max_waiting_time = max([libsumo.vehicle.getWaitingTime(v) for v in ids])
 
         # --- Reward computation ---
-        
+        self.episode_co2_total += total_co2
         co2_grams = total_co2
         w_co2 = 0.2
         w_waiting_time = 0.8
@@ -275,6 +276,9 @@ class SumoEnv(gym.Env):
             "waiting_time": total_waiting_time,
             "max_waiting_time": max_waiting_time
         }
+
+        if terminated or truncated:
+            info["episode_avgco2"] = self.episode_co2_total / len(self.vehicle_list)
 
         return stacked_obs, reward, terminated, truncated, info
     
