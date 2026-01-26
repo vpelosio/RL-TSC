@@ -222,28 +222,24 @@ class SumoEnv(gym.Env):
                 steps = int(duration / self.sim_step)
                 for _ in range(steps): 
                     self._simulation_step()
-                    for lane in self.lane_ids_list:
-                        lane_co2 = libsumo.lane.getCO2Emission(lane)
-                        total_co2 += (lane_co2 * delta_t) / 1000 # um: g
-                        total_waiting_time += libsumo.lane.getWaitingTime(lane)
+                    ids = libsumo.vehicle.getIDList()
+                    for v in ids:
+                        total_co2 += (libsumo.vehicle.getCO2Emission(v) * delta_t) / 1000 # um: g
+                        total_waiting_time += libsumo.vehicle.getWaitingTime(v)
 
                 next_phase = (next_phase + 1) % 6
 
         # Green execution
         libsumo.trafficlight.setPhase(self.sim_config.tl_id, target_phase)
 
+        max_waiting_time = 0.0
         for _ in range(self.steps_per_action): # steps per action -> min green time
             self._simulation_step()
-            for lane in self.lane_ids_list:
-                lane_co2 = libsumo.lane.getCO2Emission(lane)
-                total_co2 += (lane_co2 * delta_t) / 1000 # um: g
-                total_waiting_time += libsumo.lane.getWaitingTime(lane)
-
-        max_waiting_time = 0.0
-        if total_waiting_time > 0:
             ids = libsumo.vehicle.getIDList()
-            if ids:
-                max_waiting_time = max([libsumo.vehicle.getWaitingTime(v) for v in ids])
+            for v in ids:
+                total_co2 += (libsumo.vehicle.getCO2Emission(v) * delta_t) / 1000 # um: g
+                total_waiting_time += libsumo.vehicle.getWaitingTime(v)
+                max_waiting_time = max(max_waiting_time, libsumo.vehicle.getWaitingTime(v))
 
         # --- Reward computation ---
         self.episode_co2_total += total_co2
