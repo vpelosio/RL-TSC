@@ -50,12 +50,17 @@ class SumoEnv(gym.Env):
         # Action 1: E/W Green
         self.action_space = spaces.Discrete(2)
         
-        # avg speed, num_vehicles, starionary_vehicles for each edge and phase
-        metrics_per_edge = 3
-        phases = 2
-        base_size = self.sim_config.num_edges*metrics_per_edge + phases
+        # Discrete Traffic State Encoding DTSE
+        self.num_lanes = 8 
+        self.lane_length = 160 
+        self.cell_length = 5 
+        self.num_cells = int(self.lane_length / self.cell_length) 
+        
+        # Matrix (8 * 32) + phase (2 one-hot) + duration (1 float)
+        input_dims = (self.num_lanes * self.num_cells) + 3 
+        
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(base_size*3,), dtype=np.float32
+            low=-1, high=1, shape=(input_dims,), dtype=np.float32
         )
 
         self.lane_ids_list = []
@@ -188,10 +193,8 @@ class SumoEnv(gym.Env):
             self.lane_ids_list = lanes[:8] if len(lanes) >= 8 else lanes
 
         obs = self._compute_observation()
-        zero_obs = np.zeros_like(obs)
-        self.obs_history = [zero_obs, zero_obs, obs]
         self.episode_co2_total = 0.0
-        return np.concatenate(self.obs_history), {}
+        return obs, {}
     
     def get_measures(self):
         mesaured_vehicle_data = []
@@ -244,12 +247,10 @@ class SumoEnv(gym.Env):
         # --- Reward computation ---
         self.episode_co2_total += total_co2
         co2_grams = total_co2
-        w_co2 = 0.2
-        w_waiting_time = 0.8
+        w_waiting_time = 1
 
-        r_co2_part = w_co2 * co2_grams
         r_waiting_time = w_waiting_time * total_waiting_time
-        reward = -(r_co2_part + r_waiting_time)/10000
+        reward = -(r_waiting_time)/10000
 
         # Anti-Starvation
         penalty = 0.0
@@ -262,11 +263,6 @@ class SumoEnv(gym.Env):
         truncated = current_time >= self.episode_duration
 
         obs = self._compute_observation()
-        self.obs_history.append(obs)
-        if len(self.obs_history) > 3:
-            self.obs_history.pop(0)
-    
-        stacked_obs = np.concatenate(self.obs_history)
         info = {
             "co2": total_co2,
             "waiting_time": total_waiting_time,
@@ -276,47 +272,54 @@ class SumoEnv(gym.Env):
         if terminated or truncated:
             info["episode_avgco2"] = self.episode_co2_total / len(self.vehicle_list)
 
-        return stacked_obs, reward, terminated, truncated, info
+        return obs, reward, terminated, truncated, info
     
     def close(self):
         libsumo.close()
 
     def _compute_observation(self):
-        edge_stats = {}
+        # -1 empty cell, 0 stopped vehicle, >0 normalized speed
+        traffic_grid = np.full((self.num_lanes, self.num_cells), -1.0, dtype=np.float32)
 
-        for lane in self.lane_ids_list:
-            edge = libsumo.lane.getEdgeID(lane)
+        # TO BE FIXED: hardcoded lane order        
+        ordered_lanes = [
+            "E4_0", "E4_1", # Nord (Incoming)
+            "E3_0", "E3_1", # Est
+            "E2_0", "E2_1", # Sud
+            "E1_0", "E1_1"  # Ovest
+        ]
+        
+        for i, lane_id in enumerate(ordered_lanes):
+            vehicle_ids = libsumo.lane.getLastStepVehicleIDs(lane_id)
+            
+            for veh_id in vehicle_ids:
+                pos = libsumo.vehicle.getLanePosition(veh_id)
+                speed = libsumo.vehicle.getSpeed(veh_id)
+                max_speed = libsumo.vehicle.getAllowedSpeed(veh_id)
+                
+                dist_to_intersection = self.lane_length - pos
+                
+                cell_idx = int(dist_to_intersection / self.cell_length)
+                
+                cell_idx = min(cell_idx, self.num_cells - 1)
+                cell_idx = max(cell_idx, 0)
+                
+                if max_speed > 0:
+                    norm_speed = speed / max_speed
+                else:
+                    norm_speed = 0.0
+                    
+                traffic_grid[i][cell_idx] = norm_speed
 
-            if edge not in edge_stats:
-                edge_stats[edge] = { "vehicles" : 0.0, "mean_speed": 0.0, "stationary_vehicles": 0.0, "lanes": 0.0}
-
-            edge_stats[edge]["vehicles"] += libsumo.lane.getLastStepVehicleNumber(lane)
-            edge_stats[edge]["stationary_vehicles"] += libsumo.lane.getLastStepHaltingNumber(lane)
-            mean_speed = libsumo.lane.getLastStepMeanSpeed(lane)
-            max_speed = libsumo.lane.getMaxSpeed(lane)
-            edge_stats[edge]["mean_speed"] += (mean_speed / max_speed)
-            edge_stats[edge]["lanes"] += 1
-
-        obs = []
-        edge_lane = libsumo.lane.getLength(self.lane_ids_list[0])
-        vehicle_len_approx = 7.5
-        lane_capacity = edge_lane / vehicle_len_approx
-
-        for edge in sorted(edge_stats.keys()):
-            data = edge_stats[edge]
-            num_lanes = data["lanes"]
-
-            total_capacity = lane_capacity * num_lanes
-            normalized_vehicles = data["vehicles"] / total_capacity
-            normalized_mean_speed = data["mean_speed"] / num_lanes
-            normalized_stationary_vehicles = data["stationary_vehicles"] / total_capacity
-
-            obs.append(min(1.0, normalized_vehicles))
-            obs.append(min(1.0, max(0.0, normalized_mean_speed)))
-            obs.append(min(1.0, normalized_stationary_vehicles))
-
+        flat_grid = traffic_grid.flatten()
+        
         phase = libsumo.trafficlight.getPhase(self.sim_config.tl_id)
-        obs.append(1.0 if phase == 0 else 0.0)
-        obs.append(1.0 if phase == 3 else 0.0)
-
-        return np.array(obs, dtype=np.float32)
+        duration = libsumo.trafficlight.getSpentDuration(self.sim_config.tl_id)
+        
+        phase_info = np.array([
+            1.0 if phase == 0 else 0.0,
+            1.0 if phase == 3 else 0.0,
+            min(1.0, duration / 120.0)
+        ], dtype=np.float32)
+        
+        return np.concatenate((flat_grid, phase_info))
